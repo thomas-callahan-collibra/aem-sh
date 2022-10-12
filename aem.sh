@@ -58,7 +58,7 @@ start_instance() {
 }
 
 stop_instance() {
-  
+
   # Finds the AEM instance via lsof, stops it, and waits for the process to die peacefully
   the_aem_pid=$(ps -ef | grep java | grep "crx-quickstart" | grep "$AEM_TYPE" | awk '{ print $2 }')
   if [ -z "$the_aem_pid" ]; then
@@ -253,7 +253,7 @@ restore_content() {
   toggle_workflow_components enable
 }
 
-install_package() {  
+install_package() {
   local the_package_path=$1
   local the_package_name=$(basename $the_package_path)
   curl -n -F file=@"${the_package_path}" -F name="${the_package_name}" -F force=true -F install=true "${AEM_HTTP_LOCALHOST}/crx/packmgr/service.jsp"
@@ -273,7 +273,7 @@ start_dispatcher() {
   local the_source_script="${AEM_SDK}/$(ls $AEM_SDK | grep .sh)" # ex: ~/aem-sdk-2022.9.8722.20220912T101352Z-220800/aem-sdk-dispatcher-tools-2.0.117-unix.sh
   local the_folder=~/aem-sdk/dispatcher
   local the_script=$the_folder/dispatcher.sh
-  
+
   # create dispatcher directory, empty it, and put the AEM SDK Dispatcher shell script in it
   rm -rf $the_folder
   mkdir -p $the_folder
@@ -283,8 +283,7 @@ start_dispatcher() {
   chmod a+x $the_script
   $the_script
 
-  AEM_DISPATCHER_SRC=~/git/collibra-aem/src
-  #$the_folder/bin/docker_run.sh $AEM_DISPATCHER_SRC 127.0.0.1:4503 8080   
+  #$the_folder/bin/docker_run.sh $AEM_DISPATCHER_SRC 127.0.0.1:4503 8080
 }
 
 
