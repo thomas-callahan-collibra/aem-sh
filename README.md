@@ -2,9 +2,14 @@
 
 Single-file shell script for local AEM development on Apple M1. No other platform is tested.
 
-This repo does not provide source AEM files. Fetch them from your Adobe dudes.
+The script:
 
-The script uses the `~/aem-sdk` directory, uses default ports 4502, 4503, sets corresponding JVM debugger ports at 45020, 45030, doubles the memory allocation, and has a bunch of pretty colors.
+* uses the `~/aem-sdk` directory,
+* uses default ports `4502`, `4503`,
+* sets corresponding JVM debugger ports at `45020`, `45030`,
+* doubles the memory allocation,
+* adds a `local` runmode
+* and has a bunch of pretty colors!
 
 
 ## Dependencies
@@ -48,7 +53,7 @@ Generally a good idea to stick to GNU and not the BSD versions of these utilitie
 aem create author
 ```
 
-This is 
+This is
 
 ```
 aem create publish
