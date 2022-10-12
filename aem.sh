@@ -208,10 +208,14 @@ print_duration() {
 
 print_usage() {
   echo -e "${CYAN}aem${NC} is a helper script for managing local AEM instances. Usage:\n
-  status         author|publish
-  start          author|publish
-  stop           author|publish
-  log            author|publish [log_file]
+  ${BLUE}create             ${NC}author|publish
+  ${BLUE}destroy            ${NC}author|publish
+  ${BLUE}restore_content    ${NC}author|publish
+  ${BLUE}status             ${NC}[author|publish]
+  ${BLUE}start              ${NC}[author|publish]
+  ${BLUE}stop               ${NC}[author|publish]
+  ${BLUE}log                ${NC}author|publish [log_file]
+  ${BLUE}help               ${NC}[author|publish]
 "
 }
 

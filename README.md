@@ -18,10 +18,10 @@ java version "11.0.16" 2022-07-19 LTS
 Java(TM) SE Runtime Environment 18.9 (build 11.0.16+11-LTS-199)
 Java HotSpot(TM) 64-Bit Server VM 18.9 (build 11.0.16+11-LTS-199, mixed mode)
 ```
-* aem-sdk: place the unzipped folder under `~/aem-sdk`
-* jq
-* lsof
-* GNU versions of sed and grep - very important! Read how to install these with `brew` and set your `PATH` so that the brew executables are picked up first. To confirm:
+* [AEM as a Cloud Service SDK](https://experienceleague.adobe.com/docs/experience-manager-cloud-service/content/implementing/developing/aem-as-a-cloud-service-sdk.html?lang=en) - place the unzipped folder under `~/aem-sdk`
+* `jq`
+* `lsof`
+* GNU versions of `sed` and `grep` - very important! Read how to install these with `brew` and set your `PATH` so that the brew executables are picked up first. To confirm:
 ```
 ~ % sed --version
 sed (GNU sed) 4.8
@@ -30,10 +30,12 @@ sed (GNU sed) 4.8
 grep (GNU grep) 3.7
 ```
 
+Generally a good idea to stick to GNU and not the BSD versions of these utilities.
+
 
 ## Get started
 
-* Clone this repo
+* Clone this
 * Create `~/bin` and in your profile `export $PATH=$PATH:~/bin`
 * Create the symlink to `aem.sh`: `~/bin % ln -s ~/path/to/your/clone/aem-sh/aem.sh`
 * Test with `aem help`
