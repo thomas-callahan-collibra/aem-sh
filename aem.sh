@@ -21,24 +21,27 @@ set_env() {
     export AEM_JVM_DEBUG_PORT=45030
   fi
 
-  export AEM_HOME=/Users/matt/aem-sdk/$AEM_TYPE
+  export AEM_SDK_HOME=~/aem-sdk
+  export AEM_HOME=$AEM_SDK_HOME/$AEM_TYPE
   export AEM_LOCALHOST=localhost:$AEM_HTTP_PORT
   export AEM_HTTP_LOCALHOST=http://$AEM_LOCALHOST
   export AEM_LOCALHOST_SSL=localhost:$AEM_HTTPS_PORT
   export AEM_HTTPS_LOCALHOST=https://$AEM_LOCALHOST_SSL
-  export AEM_SDK=$(ls -aht ~/aem-sdk | grep "aem-sdk-" | head -1)
+  export AEM_SDK_SOURCE
+  AEM_SDK_SOURCE=$(find $AEM_SDK_HOME/sdk -mindepth 1 -type d | sort -nr)
 }
 
 print_env() {
     echo -e "
-      ${NC}AEM_SDK .....             ${AEM_SDK}
-      ${NC}AEM_TYPE .....            ${AEM_TYPE}
-      ${NC}AEM_HOME .....            ${AEM_HOME}
-      ${NC}AEM_HTTP_PORT .....       ${AEM_HTTP_PORT}
-      ${NC}AEM_HTTPS_PORT .....      ${AEM_HTTPS_PORT}
-      ${NC}AEM_JVM_DEBUG_PORT .....  ${AEM_JVM_DEBUG_PORT}
-      ${NC}AEM_HTTP_LOCALHOST .....  ${AEM_HTTP_LOCALHOST}
-      ${NC}AEM_HTTPS_LOCALHOST ..... ${AEM_HTTPS_LOCALHOST}
+      ${NC}AEM_SDK_HOME .....        ${GREEN}${AEM_SDK_HOME}
+      ${NC}AEM_SDK_SOURCE .....      ${GREEN}${AEM_SDK_SOURCE}
+      ${NC}AEM_TYPE .....            ${GREEN}${AEM_TYPE}
+      ${NC}AEM_HOME .....            ${GREEN}${AEM_HOME}
+      ${NC}AEM_HTTP_PORT .....       ${GREEN}${AEM_HTTP_PORT}
+      ${NC}AEM_HTTPS_PORT .....      ${GREEN}${AEM_HTTPS_PORT}
+      ${NC}AEM_JVM_DEBUG_PORT .....  ${GREEN}${AEM_JVM_DEBUG_PORT}
+      ${NC}AEM_HTTP_LOCALHOST .....  ${GREEN}${AEM_HTTP_LOCALHOST}
+      ${NC}AEM_HTTPS_LOCALHOST ..... ${GREEN}${AEM_HTTPS_LOCALHOST}
   "
 }
 
@@ -46,11 +49,11 @@ start_instance() {
   local the_crx_quickstart="$AEM_HOME/crx-quickstart"
 
   if [ ! -d $the_crx_quickstart ]; then
-    print_step "Skipping AEM ${AEM_TYPE}" "directory ${RED}${the_crx_quickstart}${NC} does not exist"
+    print_step "Skipping AEM ${AEM_TYPE} start" "directory ${the_crx_quickstart} does not exist"
     return 1
   fi
 
-  print_step "Starting" "AEM ${AEM_TYPE}${NC} at ${BLUE}${the_crx_quickstart}${NC}"
+  print_step "Starting AEM ${AEM_TYPE}" "at ${the_crx_quickstart}"
   $the_crx_quickstart/bin/start
 
   ( tail -f -n0 $the_crx_quickstart/logs/stdout.log & ) | grep -q "Startup completed"
@@ -62,17 +65,17 @@ stop_instance() {
   # Finds the AEM instance via lsof, stops it, and waits for the process to die peacefully
   the_aem_pid=$(ps -ef | grep java | grep "crx-quickstart" | grep "$AEM_TYPE" | awk '{ print $2 }')
   if [ -z "$the_aem_pid" ]; then
-    print_step "Skipping" "AEM ${AEM_TYPE}${NC}, no process ID found"
+    print_step "Skipping AEM ${AEM_TYPE} stop" "no process ID found"
     return 1
   fi
 
   the_crx_quickstart=$(lsof -p $the_aem_pid | awk '{ print $9 }' | sort | grep -vE "(fonts|jvm|pipe|socket|tmp|x86|localhost|NAME|locale)" | grep -oE "^.*(publish|author)/crx-quickstart" | sort -u)
   if [ ! -d $the_crx_quickstart ]; then
-    print_step "Skipping AEM ${AEM_TYPE}" "${RED}$the_crx_quickstart${NC} does not exist"
+    print_step "Skipping AEM ${AEM_TYPE}" "${the_crx_quickstart} does not exist"
     return 1
   fi
 
-  print_step "Stopping" "AEM ${AEM_TYPE}${NC} at ${BLUE}${the_crx_quickstart}${NC} with pid ${BLUE}${the_aem_pid}${NC}"
+  print_step "Stopping AEM ${AEM_TYPE}" "at ${the_crx_quickstart} with pid ${the_aem_pid}"
   local the_pid
   the_pid=$( ps -ef | grep $the_aem_pid | grep -v grep )
   $the_crx_quickstart/bin/stop
@@ -86,7 +89,7 @@ stop_instance() {
 
 destroy_instance() {
   local to_destroy="${AEM_HOME}"
-  print_step "Destroy" "AEM ${AEM_TYPE}${NC} at ${BLUE}${to_destroy}${NC} ?"
+  print_step "Destroy AEM ${AEM_TYPE}" "at ${to_destroy}?"
   echo -e "${NC}"
   read -p "Are you sure? [y/n] " -n 1 -r
 
@@ -103,30 +106,31 @@ destroy_instance() {
 
 create_instance() {
   local the_crx_quickstart="$AEM_HOME/crx-quickstart"
-  print_step "Creating" "AEM ${AEM_TYPE}${NC} at ${BLUE}${the_crx_quickstart}${NC}"
+  print_step "Creating AEM ${AEM_TYPE}" "at ${the_crx_quickstart}"
   mkdir -p $AEM_HOME
-  the_quickstart_jar=$(ls ~/aem-sdk/$AEM_SDK | grep .jar)
-  cd $AEM_HOME
-  java -jar ~/aem-sdk/$AEM_SDK/$the_quickstart_jar -unpack
+  cd $AEM_HOME || exit;
+
+  the_quickstart_jar=$(find $AEM_SDK_SOURCE -type f -name "*.jar")
+  java -jar $the_quickstart_jar -unpack
 
   # Set port
   local the_start_script=$AEM_HOME/crx-quickstart/bin/start
 
-  print_step "Setting port to" "${AEM_HTTP_PORT}"
+  print_step "Setting port" "${AEM_HTTP_PORT}"
   sed -i "s/CQ_PORT=4502/CQ_PORT=${AEM_HTTP_PORT}/g" $the_start_script
 
-  # Set runmodes"
-  local the_runmodes="${AEM_TYPE},local"
-  print_step "Setting runmodes to" "${the_runmodes}"
-  sed -i "s/CQ_RUNMODE='author'/CQ_RUNMODE='${the_runmodes}'/g" $the_start_script
+  # Set the run modes
+  local the_run_modes="${AEM_TYPE},local"
+  print_step "Setting runmodes" "${the_run_modes}"
+  sed -i "s/CQ_RUNMODE='author'/CQ_RUNMODE='${the_run_modes}'/g" $the_start_script
 
-  # Set JVM debugger
+  # Set the JVM debugger
   local the_debug_flags="-Xdebug -Xrunjdwp:transport=dt_socket,address=*:${AEM_JVM_DEBUG_PORT},suspend=n,server=y"
-  print_step "Setting JVM debugger" "Port ${AEM_JVM_DEBUG_PORT}"
+  print_step "Setting JVM debugger port" "${AEM_JVM_DEBUG_PORT}"
   sed -i "s/headless=true'/headless=true ${the_debug_flags}'/g" $the_start_script
 
   # Double the memory allocation
-  print_step "Setting memory" "Port ${AEM_JVM_DEBUG_PORT}"
+  print_step "Doubling memory" ""
   sed -i "s/-server -Xmx1024m -XX:MaxPermSize=256M/-server -Xmx2048m -XX:MaxPermSize=512M/g" $the_start_script
 
   # first boot
@@ -145,8 +149,6 @@ aem_status() {
   the_bundles_status=$(curl -s -n "${AEM_HTTP_LOCALHOST}/system/console/bundles.json" | jq -r '.status' | sed "s/Bundle information: //g" )
   the_process=$(ps aux | grep java | grep $AEM_TYPE)
 
-  the_process_user=$(echo ${the_process} | awk '{print $1}')
-  the_process_pid=$(echo ${the_process} | awk '{print $2}')
   the_sling_settings=$(curl -s -n "${AEM_HTTP_LOCALHOST}/system/console/status-slingsettings.txt" )
   the_system_properties=$(curl -s -n "${AEM_HTTP_LOCALHOST}/system/console/status-System%20Properties.txt" )
   the_sling_home=$(echo "${the_sling_settings}" | grep "Sling Home = " | sed "s/Sling Home = //g" )
@@ -193,7 +195,7 @@ tail_log() {
 print_step() {
   local the_message=$1
   local the_object=$2
-  echo -e "${CYAN}$the_message $the_object${NC}"
+  echo -e "${NC}$the_message – ${CYAN}$the_object${NC}"
 }
 
 
@@ -255,7 +257,8 @@ restore_content() {
 
 install_package() {
   local the_package_path=$1
-  local the_package_name=$(basename $the_package_path)
+  local the_package_name
+  the_package_name=$(basename $the_package_path)
   curl -n -F file=@"${the_package_path}" -F name="${the_package_name}" -F force=true -F install=true "${AEM_HTTP_LOCALHOST}/crx/packmgr/service.jsp"
 }
 
@@ -270,7 +273,8 @@ start_dispatcher() {
   # ps -ef | grep docker | ...?
 
   # find the script
-  local the_source_script="${AEM_SDK}/$(ls $AEM_SDK | grep .sh)" # ex: ~/aem-sdk-2022.9.8722.20220912T101352Z-220800/aem-sdk-dispatcher-tools-2.0.117-unix.sh
+  local the_source_script
+  the_source_script="$(find ${AEM_SDK_SOURCE} -type f -name '*.sh')" # ex: ~/aem-sdk/sdk/aem-sdk-2022.9.8722.20220912T101352Z-220800/aem-sdk-dispatcher-tools-2.0.117-unix.sh
   local the_folder=~/aem-sdk/dispatcher
   local the_script=$the_folder/dispatcher.sh
 
@@ -292,7 +296,19 @@ start_dispatcher() {
 #
 # aem.sh script
 #
-export BEGIN=$(date +%s)
+export NC='\033[0m'
+export RED='\033[0;31m'
+export GREEN='\033[0;32m'
+export YELLOW='\033[1;33m'
+export GRAY='\033[0;37m'
+export BLUE='\033[0;34m'
+export MAGENTA='\033[0;35m'
+export CYAN='\033[0;36m'
+export WHITE='\033[1;37m'
+
+
+BEGIN=$(date +%s)
+export BEGIN
 show_duration=
 aem_types=
 if [[ "$1" == "" && "$2" == "" ]]; then
