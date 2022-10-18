@@ -93,7 +93,6 @@ stop_instance() {
   done
 }
 
-
 destroy_instance() {
   if [ ! -d $AEM_HOME ]; then
     print_line "Cannot deleted publish" "${AEM_HOME} does not exist" error
@@ -113,7 +112,6 @@ destroy_instance() {
     echo
   fi
 }
-
 
 create_instance() {
   local the_crx_quickstart="$AEM_HOME/crx-quickstart"
@@ -221,7 +219,6 @@ print_line() {
   echo -e "$the_line"
 }
 
-
 print_duration() {
   end=$(date +%s)
   time=$(($end-$BEGIN))
@@ -230,7 +227,6 @@ print_duration() {
   ((s=${time}%60))
   printf "T %02d:%02d:%02d\n" $h $m $s
 }
-
 
 print_usage() {
   echo -e "${CYAN}aem${NC} is a helper script for managing local AEM instances. Usage:\n
@@ -245,7 +241,6 @@ print_usage() {
 ${NC}"
 }
 
-
 toggle_workflow_components() {
   if [[ "$1" == "enable" || "$1" == "disable" ]]; then
     the_action=$1
@@ -253,7 +248,6 @@ toggle_workflow_components() {
     curl -n -s --data "action=$the_action" "$AEM_HTTP_LOCALHOST/system/console/components/com.adobe.granite.workflow.core.launcher.WorkflowLauncherListener"
   fi
 }
-
 
 block_until_bundles_active() {
   local bundles_status=
@@ -289,7 +283,6 @@ restore_content() {
   install_package "${AEM_SDK_ASSETS_PACKAGE}"
   toggle_workflow_components enable
 }
-
 
 install_package() {
   local the_package_path=$1
