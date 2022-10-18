@@ -21,6 +21,12 @@ set_env() {
     export AEM_JVM_DEBUG_PORT=45030
   fi
 
+  # check that AEM_SDK_HOME is set
+  if [[ -z "${AEM_SDK_HOME}" ]]; then
+    print_line "Please set the AEM_SDK_HOME environment variable." "" error
+    exit 1
+  fi
+
   export AEM_SDK_HOME=~/aem-sdk
   export AEM_HOME=$AEM_SDK_HOME/$AEM_TYPE
   export AEM_LOCALHOST=localhost:$AEM_HTTP_PORT
@@ -49,11 +55,11 @@ start_instance() {
   local the_crx_quickstart="$AEM_HOME/crx-quickstart"
 
   if [ ! -d $the_crx_quickstart ]; then
-    print_step "Skipping AEM ${AEM_TYPE} start" "directory ${the_crx_quickstart} does not exist"
+    print_line "Skipping AEM ${AEM_TYPE} start" "${the_crx_quickstart} does not exist" error
     return 1
   fi
 
-  print_step "Starting AEM ${AEM_TYPE}" "at ${the_crx_quickstart}"
+  print_line "Starting AEM ${AEM_TYPE}" "at ${the_crx_quickstart}"
   $the_crx_quickstart/bin/start
 
   ( tail -f -n0 $the_crx_quickstart/logs/stdout.log & ) | grep -q "Startup completed"
@@ -65,17 +71,17 @@ stop_instance() {
   # Finds the AEM instance via lsof, stops it, and waits for the process to die peacefully
   the_aem_pid=$(ps -ef | grep java | grep "crx-quickstart" | grep "$AEM_TYPE" | awk '{ print $2 }')
   if [ -z "$the_aem_pid" ]; then
-    print_step "Skipping AEM ${AEM_TYPE} stop" "no process ID found"
+    print_line "Skipping AEM ${AEM_TYPE} stop" "no process ID found"
     return 1
   fi
 
   the_crx_quickstart=$(lsof -p $the_aem_pid | awk '{ print $9 }' | sort | grep -vE "(fonts|jvm|pipe|socket|tmp|x86|localhost|NAME|locale)" | grep -oE "^.*(publish|author)/crx-quickstart" | sort -u)
   if [ ! -d $the_crx_quickstart ]; then
-    print_step "Skipping AEM ${AEM_TYPE}" "${the_crx_quickstart} does not exist"
+    print_line "Skipping AEM ${AEM_TYPE}" "${the_crx_quickstart} does not exist" error
     return 1
   fi
 
-  print_step "Stopping AEM ${AEM_TYPE}" "at ${the_crx_quickstart} with pid ${the_aem_pid}"
+  print_line "Stopping AEM ${AEM_TYPE}" "at ${the_crx_quickstart} with pid ${the_aem_pid}"
   local the_pid
   the_pid=$( ps -ef | grep $the_aem_pid | grep -v grep )
   $the_crx_quickstart/bin/stop
@@ -88,16 +94,20 @@ stop_instance() {
 
 
 destroy_instance() {
-  local to_destroy="${AEM_HOME}"
-  print_step "Destroy AEM ${AEM_TYPE}" "at ${to_destroy}?"
+  if [ ! -d $AEM_HOME ]; then
+    print_line "Cannot deleted publish" "${AEM_HOME} does not exist" error
+    exit 1
+  fi
+
+  print_line "Destroy AEM ${AEM_TYPE}" "at ${AEM_HOME}?"
   echo -e "${NC}"
   read -p "Are you sure? [y/n] " -n 1 -r
 
   if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo
     stop_instance $AEM_TYPE
-    rm -rf $to_destroy
-    echo -e "\nDone.${NC}\n"
+    rm -rf $AEM_HOME
+    print_line "Deleted" "${AEM_HOME}"
   else
     echo
   fi
@@ -106,7 +116,7 @@ destroy_instance() {
 
 create_instance() {
   local the_crx_quickstart="$AEM_HOME/crx-quickstart"
-  print_step "Creating AEM ${AEM_TYPE}" "at ${the_crx_quickstart}"
+  print_line "Creating AEM ${AEM_TYPE}" "at ${the_crx_quickstart}"
   mkdir -p $AEM_HOME
   cd $AEM_HOME || exit;
 
@@ -116,21 +126,21 @@ create_instance() {
   # Set port
   local the_start_script=$AEM_HOME/crx-quickstart/bin/start
 
-  print_step "Setting port" "${AEM_HTTP_PORT}"
+  print_line "Setting port" "${AEM_HTTP_PORT}"
   sed -i "s/CQ_PORT=4502/CQ_PORT=${AEM_HTTP_PORT}/g" $the_start_script
 
   # Set the run modes
   local the_run_modes="${AEM_TYPE},local"
-  print_step "Setting runmodes" "${the_run_modes}"
+  print_line "Setting runmodes" "${the_run_modes}"
   sed -i "s/CQ_RUNMODE='author'/CQ_RUNMODE='${the_run_modes}'/g" $the_start_script
 
   # Set the JVM debugger
   local the_debug_flags="-Xdebug -Xrunjdwp:transport=dt_socket,address=*:${AEM_JVM_DEBUG_PORT},suspend=n,server=y"
-  print_step "Setting JVM debugger port" "${AEM_JVM_DEBUG_PORT}"
+  print_line "Setting JVM debugger port" "${AEM_JVM_DEBUG_PORT}"
   sed -i "s/headless=true'/headless=true ${the_debug_flags}'/g" $the_start_script
 
   # Double the memory allocation
-  print_step "Doubling memory" ""
+  print_line "Doubling memory" ""
   sed -i "s/-server -Xmx1024m -XX:MaxPermSize=256M/-server -Xmx2048m -XX:MaxPermSize=512M/g" $the_start_script
 
   # first boot
@@ -187,15 +197,27 @@ tail_log() {
   if [ -f "$the_log_file" ]; then
     tail -n 0 -f $the_log_file
   else
-    echo -e "${RED}The file at ${BLUE}$the_log_file${RED} does not exist. Check your arguments.${NC}"
-    exit ${NC}1
+    print_line "Log file does not exist" $the_log_file error
+    exit 1
   fi
 }
 
-print_step() {
-  local the_message=$1
+print_line() {
+  local the_header=$1
   local the_object=$2
-  echo -e "${NC}$the_message – ${CYAN}$the_object${NC}"
+  local the_type=$3
+
+  local the_line
+  if [[ "$the_type" == "error" ]]; then
+    the_line="${RED}${the_header}${NC}"
+  else
+    the_line="${CYAN}${the_header}${NC}"
+  fi
+
+  if [ ! -z "$the_object" ]; then
+    the_line="${the_line} ${BLUE}$the_object${NC}"
+  fi
+  echo -e "$the_line"
 }
 
 
@@ -218,7 +240,7 @@ print_usage() {
   ${BLUE}stop               ${NC}[author|publish]
   ${BLUE}log                ${NC}author|publish [log_file]
   ${BLUE}help               ${NC}[author|publish]
-"
+${NC}"
 }
 
 toggle_workflow_components() {
@@ -234,7 +256,7 @@ block_until_bundles_active() {
   local bundles_status=
   local bundles_active=
 
-  print_step "Waiting for bundles to start" "$AEM_HTTP_LOCALHOST"
+  print_line "Waiting for bundles to start" "$AEM_HTTP_LOCALHOST"
 
   while [ -z "$bundles_active" ]; do
     bundles_status=$(curl -s -n "${AEM_HTTP_LOCALHOST}/system/console/bundles.json" | grep -o 'Bundle information: [^,]*\.')
@@ -249,11 +271,22 @@ block_until_bundles_active() {
 }
 
 restore_content() {
+  if [[ -z "${AEM_SDK_CONTENT_PACKAGE}" ]]; then
+    print_line "Please set the AEM_SDK_CONTENT_PACKAGE environment variable." "" error
+    exit 1
+  fi
+
+  if [[ -z "${AEM_SDK_ASSETS_PACKAGE}" ]]; then
+    print_line "Please set the AEM_SDK_ASSETS_PACKAGE environment variable." "" error
+    exit 1
+  fi
+
   toggle_workflow_components disable
-  install_package $AEM_PACKAGE_ASSETS
-  install_package $AEM_PACKAGE_CONTENT
+  install_package "${AEM_SDK_CONTENT_PACKAGE}"
+  install_package "${AEM_SDK_ASSETS_PACKAGE}"
   toggle_workflow_components enable
 }
+
 
 install_package() {
   local the_package_path=$1
