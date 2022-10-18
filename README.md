@@ -39,14 +39,14 @@ Generally a good idea to stick to GNU and not the BSD versions of these utilitie
 
 ## Get started
 
-Set the following environment variables. The easiest way is to define them in `.zshrc`.
+Set the following environment variables. The easiest way is to define them in `.zshrc`. Example values:
 
 ```
 # aem.sh
 export AEM_SDK_HOME=~/aem-sdk
-export AEM_SDK_CONTENT_PACKAGE=~/path/to/content/package.zip
-export AEM_SDK_ASSETS_PACKAGE=~/path/to/assets/package.zip
-export AEM_SDK_DISPATCHER_SRC=~/path/to/dispatcher/src/folder
+export AEM_SDK_CONTENT_PACKAGE=$AEM_SDK_HOME/packages/my-content-package.zip
+export AEM_SDK_ASSETS_PACKAGE=$AEM_SDK_HOME/packages/my-assets-package.zip
+export AEM_SDK_DISPATCHER_SRC=~git/my-project/dispatcher/src
 ```
 
 * Clone this
