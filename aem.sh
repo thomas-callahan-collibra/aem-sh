@@ -5,15 +5,18 @@
 # aem.sh functions
 #
 
-# set the environment variables for the current action
-#   $1 - the aem instance type
 set_env() {
+  # check that AEM_SDK_HOME is set
+  if [[ -z "${AEM_SDK_HOME}" ]]; then
+    print_line "Please set the AEM_SDK_HOME environment variable." "" error
+    exit 1
+  fi
+
   if [[ "$1" == "author" ]]; then
     export AEM_TYPE=author
     export AEM_HTTP_PORT=4502
     export AEM_HTTPS_PORT=5502
     export AEM_JVM_DEBUG_PORT=45020
-
   elif [[ "$1" == "publish" ]]; then
     export AEM_TYPE=publish
     export AEM_HTTP_PORT=4503
@@ -21,34 +24,32 @@ set_env() {
     export AEM_JVM_DEBUG_PORT=45030
   fi
 
-  # check that AEM_SDK_HOME is set
-  if [[ -z "${AEM_SDK_HOME}" ]]; then
-    print_line "Please set the AEM_SDK_HOME environment variable." "" error
-    exit 1
-  fi
-
-  export AEM_SDK_HOME=~/aem-sdk
+  AEM_HTTP_IP=$(ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1')
+  export AEM_HTTP_IP;
   export AEM_HOME=$AEM_SDK_HOME/$AEM_TYPE
   export AEM_LOCALHOST=localhost:$AEM_HTTP_PORT
   export AEM_HTTP_LOCALHOST=http://$AEM_LOCALHOST
   export AEM_LOCALHOST_SSL=localhost:$AEM_HTTPS_PORT
   export AEM_HTTPS_LOCALHOST=https://$AEM_LOCALHOST_SSL
-  export AEM_SDK_SOURCE
-  AEM_SDK_SOURCE=$(find $AEM_SDK_HOME/sdk -mindepth 1 -type d | sort -nr)
+  AEM_SDK_ACTIVE=$(find $AEM_SDK_HOME/sdk -mindepth 1 -type d | sort -nr)
+  export AEM_SDK_ACTIVE
 }
 
 print_env() {
     echo -e "
-      ${NC}AEM_SDK_HOME .....        ${GREEN}${AEM_SDK_HOME}
-      ${NC}AEM_SDK_SOURCE .....      ${GREEN}${AEM_SDK_SOURCE}
       ${NC}AEM_TYPE .....            ${GREEN}${AEM_TYPE}
+      ${NC}AEM_SDK_HOME .....        ${GREEN}${AEM_SDK_HOME}
+      ${NC}AEM_SDK_ACTIVE .....      ${GREEN}${AEM_SDK_ACTIVE}
       ${NC}AEM_HOME .....            ${GREEN}${AEM_HOME}
+      ${NC}AEM_HTTP_IP .....         ${GREEN}${AEM_HTTP_IP}
       ${NC}AEM_HTTP_PORT .....       ${GREEN}${AEM_HTTP_PORT}
-      ${NC}AEM_HTTPS_PORT .....      ${GREEN}${AEM_HTTPS_PORT}
       ${NC}AEM_JVM_DEBUG_PORT .....  ${GREEN}${AEM_JVM_DEBUG_PORT}
       ${NC}AEM_HTTP_LOCALHOST .....  ${GREEN}${AEM_HTTP_LOCALHOST}
-      ${NC}AEM_HTTPS_LOCALHOST ..... ${GREEN}${AEM_HTTPS_LOCALHOST}
-  "
+"
+
+  # SSL, coming later
+  # AEM_HTTPS_PORT .....      ${GREEN}${AEM_HTTPS_PORT}
+  # AEM_HTTPS_LOCALHOST ..... ${GREEN}${AEM_HTTPS_LOCALHOST}
 }
 
 start_instance() {
@@ -120,7 +121,7 @@ create_instance() {
   mkdir -p $AEM_HOME
   cd $AEM_HOME || exit;
 
-  the_quickstart_jar=$(find $AEM_SDK_SOURCE -type f -name "*.jar")
+  the_quickstart_jar=$(find $AEM_SDK_ACTIVE -type f -name "*.jar")
   java -jar $the_quickstart_jar -unpack
 
   # Set port
@@ -305,7 +306,7 @@ find_aem_bundle() {
 
 start_dispatcher() {
 
-  # test to see if Docker Desktop is running
+  # test to see if Docker Desktop is running?
 
   if [[ -z "${AEM_SDK_DISPATCHER_SRC}" ]]; then
     print_line "Please set the AEM_SDK_DISPATCHER_SRC environment variable." "" error
@@ -313,7 +314,7 @@ start_dispatcher() {
   fi
 
   local the_source_script
-  the_source_script="$(find ${AEM_SDK_SOURCE} -type f -name '*.sh')"
+  the_source_script="$(find ${AEM_SDK_ACTIVE} -type f -name '*.sh')"
   local the_dispatcher_folder=$AEM_SDK_HOME/dispatcher
   local the_destination_script=$the_dispatcher_folder/dispatcher.sh
 
@@ -330,7 +331,7 @@ start_dispatcher() {
   the_dispatcher_sub_folder=$(find $the_dispatcher_folder -type d -mindepth 1 -maxdepth 1)
 
   # start the Dispatcher in Docker using our Dispatcher source files
-  $the_dispatcher_sub_folder/bin/docker_run.sh $AEM_SDK_DISPATCHER_SRC 127.0.0.1:$AEM_HTTP_PORT 8080
+  $the_dispatcher_sub_folder/bin/docker_run.sh $AEM_SDK_DISPATCHER_SRC $AEM_HTTP_IP:$AEM_HTTP_PORT 8080
 
 
 }
@@ -385,7 +386,7 @@ do
     status)
       aem_status
       ;;
-    print)
+    print_env)
       print_env
       ;;
   esac
