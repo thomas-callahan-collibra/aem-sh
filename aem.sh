@@ -230,6 +230,7 @@ print_duration() {
   printf "T %02d:%02d:%02d\n" $h $m $s
 }
 
+
 print_usage() {
   echo -e "${CYAN}aem${NC} is a helper script for managing local AEM instances. Usage:\n
   ${BLUE}create             ${NC}author|publish
@@ -242,6 +243,7 @@ print_usage() {
   ${BLUE}help               ${NC}[author|publish]
 ${NC}"
 }
+
 
 toggle_workflow_components() {
   if [[ "$1" == "enable" || "$1" == "disable" ]]; then
@@ -302,25 +304,35 @@ find_aem_bundle() {
 }
 
 start_dispatcher() {
-  # kill any instance that may have been started previously
-  # ps -ef | grep docker | ...?
 
-  # find the script
+  # test to see if Docker Desktop is running
+
+  if [[ -z "${AEM_SDK_DISPATCHER_SRC}" ]]; then
+    print_line "Please set the AEM_SDK_DISPATCHER_SRC environment variable." "" error
+    exit 1
+  fi
+
   local the_source_script
-  the_source_script="$(find ${AEM_SDK_SOURCE} -type f -name '*.sh')" # ex: ~/aem-sdk/sdk/aem-sdk-2022.9.8722.20220912T101352Z-220800/aem-sdk-dispatcher-tools-2.0.117-unix.sh
-  local the_folder=~/aem-sdk/dispatcher
-  local the_script=$the_folder/dispatcher.sh
+  the_source_script="$(find ${AEM_SDK_SOURCE} -type f -name '*.sh')"
+  local the_dispatcher_folder=$AEM_SDK_HOME/dispatcher
+  local the_destination_script=$the_dispatcher_folder/dispatcher.sh
 
-  # create dispatcher directory, empty it, and put the AEM SDK Dispatcher shell script in it
-  rm -rf $the_folder
-  mkdir -p $the_folder
-  cp $the_source_script $the_script
+  rm -rf $the_dispatcher_folder
+  mkdir -p $the_dispatcher_folder
+  cp $the_source_script $the_destination_script
 
   # make the script executable and execute it
-  chmod a+x $the_script
-  $the_script
+  chmod a+x $the_destination_script
+  cd $the_dispatcher_folder || exit
+  $the_destination_script
 
-  #$the_folder/bin/docker_run.sh $AEM_DISPATCHER_SRC 127.0.0.1:4503 8080
+  local the_dispatcher_sub_folder
+  the_dispatcher_sub_folder=$(find $the_dispatcher_folder -type d -mindepth 1 -maxdepth 1)
+
+  # start the Dispatcher in Docker using our Dispatcher source files
+  $the_dispatcher_sub_folder/bin/docker_run.sh $AEM_SDK_DISPATCHER_SRC 127.0.0.1:$AEM_HTTP_PORT 8080
+
+
 }
 
 
@@ -396,7 +408,8 @@ case "$1" in
     show_duration=true
     ;;
   dispatcher)
-     start_dispatcher
+    set_env publish
+    start_dispatcher
     ;;
   log)
     set_env $2

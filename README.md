@@ -37,8 +37,17 @@ grep (GNU grep) 3.7
 
 Generally a good idea to stick to GNU and not the BSD versions of these utilities.
 
-
 ## Get started
+
+Set the following environment variables. The easiest way is to define them in `.zshrc`.
+
+```
+# aem.sh
+export AEM_SDK_HOME=~/aem-sdk
+export AEM_SDK_CONTENT_PACKAGE=~/path/to/content/package.zip
+export AEM_SDK_ASSETS_PACKAGE=~/path/to/assets/package.zip
+export AEM_SDK_DISPATCHER_SRC=~/path/to/dispatcher/src/folder
+```
 
 * Clone this
 * Create `~/bin` and in your profile `export $PATH=$PATH:~/bin`
@@ -101,18 +110,16 @@ will prompt you for a confirmation, then stop the instance if it is running, the
 
 ### Restore content
 
-Rather than committing paths and filenames to source, the script uses environment variables. Set them in your
+Rather than committing paths and filenames to source, the script uses environment variables. Set them in your `.zshrc` in your user's home directory.
 
-```
-# aem.sh
-export AEM_PACKAGE_ASSETS=~/aem-sdk/content-collibra-assets.zip
-export AEM_PACKAGE_ASSETS=~/aem-sdk/content-collibra.zip
-```
-
-Then run
+Then run:
 
 ```
 aem restore_content author
 ```
 
 on a fresh AEM instance, and the content is restored. DAM Workflows are disabled before installing, and re-enabled post-install.
+
+### Create a local Dispatcher
+
+WIP
