@@ -68,7 +68,6 @@ start_instance() {
 }
 
 stop_instance() {
-
   # Finds the AEM instance via lsof, stops it, and waits for the process to die peacefully
   the_aem_pid=$(ps -ef | grep java | grep "crx-quickstart" | grep "$AEM_TYPE" | awk '{ print $2 }')
   if [ -z "$the_aem_pid" ]; then
@@ -82,15 +81,23 @@ stop_instance() {
     return 1
   fi
 
-  print_line "Stopping AEM ${AEM_TYPE}" "at ${the_crx_quickstart} with pid ${the_aem_pid}"
-  local the_pid
-  the_pid=$( ps -ef | grep $the_aem_pid | grep -v grep )
-  $the_crx_quickstart/bin/stop
-
-  while [[ $the_pid ]]; do
-    sleep 1
+  if [[ "$1" == "force" ]]; then
+    print_line "Killing AEM ${AEM_TYPE}" "at ${the_crx_quickstart} with pid ${the_aem_pid}"
+    kill -9 $the_aem_pid
+  else
+    print_line "Stopping AEM ${AEM_TYPE}" "at ${the_crx_quickstart} with pid ${the_aem_pid}"
+    local the_pid
     the_pid=$( ps -ef | grep $the_aem_pid | grep -v grep )
-  done
+    $the_crx_quickstart/bin/stop
+
+    while [[ $the_pid ]]; do
+      sleep 1
+      the_pid=$( ps -ef | grep $the_aem_pid | grep -v grep )
+    done
+  fi
+
+
+
 }
 
 destroy_instance() {
@@ -105,7 +112,7 @@ destroy_instance() {
 
   if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo
-    stop_instance $AEM_TYPE
+    stop_instance "force"
     rm -rf $AEM_HOME
     print_line "Deleted" "${AEM_HOME}"
   else
@@ -387,9 +394,7 @@ done
 
 # These actions require the "author" or "publish" argument
 case "$1" in
-  help)
-    print_usage
-    ;;
+
   create)
     set_env $2
     print_env
@@ -412,6 +417,9 @@ case "$1" in
   find_bundle)
     set_env author
     find_aem_bundle $3
+    ;;
+  help)
+    print_usage
     ;;
 esac
 
