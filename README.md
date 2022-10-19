@@ -1,6 +1,6 @@
 # aem.sh
 
-Single-file shell script for local AEM development on Apple M1. No other platform is tested.
+Single-file shell script for local AEM development on latest macOS (M1). No other platform is tested, but feel free to extend and open a PR.
 
 The script:
 
@@ -120,6 +120,12 @@ aem restore_content author
 
 on a fresh AEM instance, and the content is restored. DAM Workflows are disabled before installing, and re-enabled post-install.
 
-### Create a local Dispatcher
+### Run the Dispatcher web server
 
-WIP
+You need Docker Desktop to be running. Then run:
+
+```
+aem dispatcher
+```
+
+Then you can browse the site at `http://localhost:8080/`
