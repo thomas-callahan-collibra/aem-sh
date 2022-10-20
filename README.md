@@ -33,7 +33,8 @@ sed (GNU sed) 4.8
 grep (GNU grep) 3.7
 ```
 
-* Set the `AEM_PROJECT_HOME` environment
+* Set the `AEM_PROJECT_HOME` environment to point to your AEM project e.g. in your `.zshrc`:
+  * `export AEM_PROJECT_HOME=~/git/my-aem-project`
 
 
 ## Get started
