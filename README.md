@@ -1,20 +1,17 @@
 # aem.sh
 
-Single-file shell script for local AEM development on latest macOS (M1). No other platform is tested, but feel free to extend and open a PR.
-
-The script:
+Single-file shell script for local AEM development on latest macOS (M1). No other platform is tested, but feel free to extend and open a PR. The script:
 
 * uses the `~/aem-sdk` directory,
 * uses default ports `4502`, `4503`,
 * sets corresponding JVM debugger ports at `45020`, `45030`,
 * doubles the memory allocation,
-* adds a `local` runmode
-* and has a bunch of pretty colors!
+* and adds a `local` runmode.
 
 
 ## Dependencies
 
-The script does not manage dependencies. They are:
+Ensure the following dependency requirements are met.
 
 * Java JDK 11:
 ```
@@ -23,10 +20,11 @@ java version "11.0.16" 2022-07-19 LTS
 Java(TM) SE Runtime Environment 18.9 (build 11.0.16+11-LTS-199)
 Java HotSpot(TM) 64-Bit Server VM 18.9 (build 11.0.16+11-LTS-199, mixed mode)
 ```
-* [AEM as a Cloud Service SDK](https://experienceleague.adobe.com/docs/experience-manager-cloud-service/content/implementing/developing/aem-as-a-cloud-service-sdk.html?lang=en) - place the unzipped folder under `~/aem-sdk`
-* `jq`
-* `lsof`
-* GNU versions of `sed` and `grep` - very important! Read how to install these with `brew` and set your `PATH` so that the brew executables are picked up first. To confirm:
+
+* [AEM as a Cloud Service SDK](https://experienceleague.adobe.com/docs/experience-manager-cloud-service/content/implementing/developing/aem-as-a-cloud-service-sdk.html?lang=en)
+* `brew install jq`
+* The GNU versions of `sed` and `grep` - see [this](https://medium.com/@bramblexu/install-gnu-sed-on-mac-os-and-set-it-as-default-7c17ef1b8f64) - and confirm with:
+
 ```
 ~ % sed --version
 sed (GNU sed) 4.8
@@ -35,97 +33,76 @@ sed (GNU sed) 4.8
 grep (GNU grep) 3.7
 ```
 
-Generally a good idea to stick to GNU and not the BSD versions of these utilities.
+* Set the `AEM_PROJECT_HOME` environment
+
 
 ## Get started
 
-Set the following environment variables. The easiest way is to define them in `.zshrc`. Example values:
-
-```
-# aem.sh
-export AEM_SDK_HOME=~/aem-sdk
-export AEM_SDK_CONTENT_PACKAGE=$AEM_SDK_HOME/packages/my-content-package.zip
-export AEM_SDK_ASSETS_PACKAGE=$AEM_SDK_HOME/packages/my-assets-package.zip
-export AEM_SDK_DISPATCHER_SRC=~git/my-project/dispatcher/src
-```
-
-* Clone this
-* Create `~/bin` and in your profile `export $PATH=$PATH:~/bin`
-* Create the symlink to `aem.sh`: `~/bin % ln -s ~/path/to/your/clone/aem-sh/aem.sh`
-* Test with `aem help`
-
-## Examples
-
-### Create a local Author instance
-
-```
-aem create author
-```
-
-This is
-
-```
-aem create publish
-```
-
-After these finish, check the status of the instances:
+1. Clone this repo
+1. Create the `aem` symlink on your `$PATH`. A possible approach:
+  * Create `~/bin` and in your profile: `export $PATH=$PATH:~/bin`
+  * Create the symlink: `ln -s ~/path/to/your/clone/aem-sh/aem.sh ~/bin/aem`
+1 Test with `aem help` to see the script's usage.
+1. Create `~/aem-sdk`
+1. Download the AEM SDK zip and unzip to `/aem-sdk/sdk`
+1. Download your content packages from the source Author (typically Production), and please under `~/aem-sdk/packages` and is used by `aem install_content`
+1. Optional: build your AEM project - the `all` artifact (zip file) is used by `aem install_code`
 
 
-```
-aem status
-```
+
+## Commands
+
+### Create an empty AEM instance
+
+`aem create author` and `aem create publish` to create a local Author and Publish, respectively
+
+### Get the status
+
+`aem status` will print the status of both instances
 
 ### Stop the instance
 
-```
-aem stop author
-```
+`aem stop author` will gracefully stop and shutdown the specified instance.
 
-If you omit the instance type i.e. `aem stop`, the script attempts to process both types.
 
 ### Start the instance
 
-```
-aem start
-```
-
-will start both instances.
+`aem start author` will the specified AEM instance, and wait until all the bundles are active.
 
 ### Log the instance
 
-```
-aem log author
-```
+`aem log publish` will tail the `error.log` file of the `publish` instance.
 
-will tail the `error.log` file of the `author` instance. You can specify another parameter for another log file. For example, if you configured a `my-service.log` log file, `aem log author my-service`
+You can specify an additional argument for another log file. For example, if you configured a `my-service.log` log file, run `aem log publish my-service`.
 
 
 ### Destroy instances
 
-```
-aem destroy author
-```
+`aem destroy author` will prompt you for a confirmation, then forcefully stop the specified instance if running, and delete its home directory.
 
-will prompt you for a confirmation, then stop the instance if it is running, then delete the folder.
 
-### Restore content
+### Install content
 
-Rather than committing paths and filenames to source, the script uses environment variables. Set them in your `.zshrc` in your user's home directory.
+`aem install_content author` uploads and installs all the content packages stored under `~/aem-sdk/packages` to the specified instance.
 
-Then run:
+DAM workflows are disabled before installing, and re-enabled post-install, to prevent ootb, expensive asset workflows from triggering.
 
-```
-aem restore_content author
-```
 
-on a fresh AEM instance, and the content is restored. DAM Workflows are disabled before installing, and re-enabled post-install.
+### Install code
+
+`aem install_code publish` will look for the `all` build artifact under `$AEM_PROJECT_HOME/all/target` (this assumes the project was built) and upload and install it to the specified instance.
+
 
 ### Run the Dispatcher web server
 
-You need Docker Desktop to be running. Then run:
+`aem dispatcher` will start the Dispatcher using the configs and rules under `$AEM_PROJECT_HOME/dispatcher/src`.
 
-```
-aem dispatcher
-```
+Then you can browse the site at `http://localhost:8080/`.
 
-Then you can browse the site at `http://localhost:8080/`
+* Make sure Docker Desktop is running
+* Make sure the AEM Publisher is running
+
+
+### Notes
+
+* For commands `start` `stop`, `status`, if you omit the instance type, i.e. `aem start`, the script will run the command for both instance types.
