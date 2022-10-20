@@ -1,13 +1,6 @@
 # aem.sh
 
-Single-file shell script for local AEM development on latest macOS (M1). No other platform is tested, but feel free to extend and open a PR. The script:
-
-* uses the `~/aem-sdk` directory,
-* uses default ports `4502`, `4503`,
-* sets corresponding JVM debugger ports at `45020`, `45030`,
-* doubles the memory allocation,
-* and adds a `local` runmode.
-
+The goal `aem.sh` is to promote a clean working development environment by making it easy to manage the lifecycle of local AEMaaCS instances: Author, Publish, Dispatcher.
 
 ## Dependencies
 
@@ -55,8 +48,14 @@ grep (GNU grep) 3.7
 
 #### Create
 
-`aem create author` and `aem create publish` to create a local Author and Publish, respectively
+`aem create author` and `aem create publish` to create a local Author and Publish, respectively.
 
+When creating the instance, the ootb `start` scripts are touched:
+
+* sets the default AEM ports `4502` and `4503`,
+* sets a JVM debugger at ports `45020` and `45030`,
+* doubles the memory allocation,
+* adds a `local` runmode.
 
 #### Status
 
