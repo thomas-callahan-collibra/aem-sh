@@ -50,59 +50,61 @@ grep (GNU grep) 3.7
 
 
 
-## Commands
+### Commands
 
-### Create an empty AEM instance
+#### Create
 
 `aem create author` and `aem create publish` to create a local Author and Publish, respectively
 
-### Get the status
+
+#### Status
 
 `aem status` will print the status of both instances
 
-### Stop the instance
+
+#### Stop
 
 `aem stop author` will gracefully stop and shutdown the specified instance.
 
 
-### Start the instance
+#### Start
 
 `aem start author` will the specified AEM instance, and wait until all the bundles are active.
 
-### Log the instance
+
+#### Log
 
 `aem log publish` will tail the `error.log` file of the `publish` instance.
 
 You can specify an additional argument for another log file. For example, if you configured a `my-service.log` log file, run `aem log publish my-service`.
 
 
-### Destroy instances
+#### Destroy
 
 `aem destroy author` will prompt you for a confirmation, then forcefully stop the specified instance if running, and delete its home directory.
 
 
-### Install content
+#### Install content
 
 `aem install_content author` uploads and installs all the content packages stored under `~/aem-sdk/packages` to the specified instance.
 
 DAM workflows are disabled before installing, and re-enabled post-install, to prevent ootb, expensive asset workflows from triggering.
 
 
-### Install code
+#### Install code
 
 `aem install_code publish` will look for the `all` build artifact under `$AEM_PROJECT_HOME/all/target` (this assumes the project was built) and upload and install it to the specified instance.
 
 
-### Run the Dispatcher web server
+#### Dispatcher
 
-`aem dispatcher` will start the Dispatcher using the configs and rules under `$AEM_PROJECT_HOME/dispatcher/src`.
+`aem dispatcher` will start the Docker container with Apache/Dispatcher using the configs and rules under `$AEM_PROJECT_HOME/dispatcher/src`.
 
 Then you can browse the site at `http://localhost:8080/`.
 
-* Make sure Docker Desktop is running
-* Make sure the AEM Publisher is running
+Make sure Docker Desktop and AEM Publisher are running
 
 
-### Notes
+### Script notes
 
 * For commands `start` `stop`, `status`, if you omit the instance type, i.e. `aem start`, the script will run the command for both instance types.

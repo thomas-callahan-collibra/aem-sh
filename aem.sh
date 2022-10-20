@@ -334,20 +334,30 @@ install_package() {
 
 install_content() {
   toggle_workflow_components disable
-  install_package "${AEM_SDK_CONTENT_PACKAGE}"
-  install_package "${AEM_SDK_ASSETS_PACKAGE}"
+  # get the packages under $AEM_SDK_HOME/packages into an array
+  files=()
+  while IFS=  read -r -d $'\0'; do
+      files+=("$REPLY")
+  done < <(find "$AEM_SDK_HOME/packages" -name '*.zip' -print0)
+
+  # and install them
+  for file in "${files[@]}"; do
+    install_package "$file"
+  done
+
   toggle_workflow_components enable
 }
 
-install_project() {
-    local the_all_zip
-    the_all_zip="$(find "$AEM_PROJECT_HOME"/all/target -maxdepth 1 -name '*.zip')"
-    if [[ -f "${the_all_zip}" ]]; then
-      install_package "${the_all_zip}"
-    else
-      print_step "Could not find the All zip file" "" error
-      return 1
-    fi
+install_code() {
+  local the_all_zip
+  the_all_zip="$(find "$AEM_PROJECT_HOME"/all/target -maxdepth 1 -name '*.zip')"
+
+  if [[ -f "${the_all_zip}" ]]; then
+    install_package "${the_all_zip}"
+  else
+    print_step "Could not find the All build artifact at ${AEM_PROJECT_HOME}" "" error
+    return 1
+  fi
 }
 
 
@@ -413,9 +423,9 @@ case "$1" in
     install_content
     show_duration=true
     ;;
-  install_project)
+  install_code)
     set_env $2
-    install_project
+    install_code
     show_duration=true
     ;;
   dispatcher)
