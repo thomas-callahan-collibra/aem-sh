@@ -1,6 +1,4 @@
-# aem.sh
-
-The goal `aem.sh` is to promote a clean working development environment by making it easy to manage the lifecycle of local AEMaaCS instances: Author, Publish, Dispatcher.
+The goal of `aem.sh` is to promote a clean working development environment by making it easy to manage the lifecycle of local AEMaaCS instances: Author, Publish, Dispatcher.
 
 ## Dependencies
 
