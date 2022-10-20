@@ -4,6 +4,7 @@ The goal of `aem.sh` is to promote a clean working development environment by ma
 
 Ensure the following dependency requirements are met.
 
+* [AEM as a Cloud Service SDK](https://experienceleague.adobe.com/docs/experience-manager-cloud-service/content/implementing/developing/aem-as-a-cloud-service-sdk.html?lang=en)
 * Java JDK 11:
 ```
 ~ % java -version
@@ -11,11 +12,8 @@ java version "11.0.16" 2022-07-19 LTS
 Java(TM) SE Runtime Environment 18.9 (build 11.0.16+11-LTS-199)
 Java HotSpot(TM) 64-Bit Server VM 18.9 (build 11.0.16+11-LTS-199, mixed mode)
 ```
-
-* [AEM as a Cloud Service SDK](https://experienceleague.adobe.com/docs/experience-manager-cloud-service/content/implementing/developing/aem-as-a-cloud-service-sdk.html?lang=en)
 * `brew install jq`
 * The GNU versions of `sed` and `grep` - see [this](https://medium.com/@bramblexu/install-gnu-sed-on-mac-os-and-set-it-as-default-7c17ef1b8f64) - and confirm with:
-
 ```
 ~ % sed --version
 sed (GNU sed) 4.8
