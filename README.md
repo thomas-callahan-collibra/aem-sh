@@ -22,8 +22,13 @@ sed (GNU sed) 4.8
 grep (GNU grep) 3.7
 ```
 
-* Set the `AEM_PROJECT_HOME` environment to point to your AEM project e.g. in your `.zshrc`:
-  * `export AEM_PROJECT_HOME=~/git/my-aem-project`
+* Set the following two environment variables, e.g. in your `.zshrc`:
+*
+```
+export AEM_PROJECT_HOME=~/git/my-aem-project                   # point to your AEM project
+export AEM_PROJECT_HOME_PAGE=/content/my-co/us/en/home.html    # point to your AEM homepage
+```
+
 
 
 ## Get started
@@ -99,6 +104,13 @@ DAM workflows are disabled before installing, and re-enabled post-install, to pr
 Then you can browse the site at `http://localhost:8080/`.
 
 Make sure Docker Desktop and AEM Publisher are running
+
+
+#### Provision
+
+`aem provision author` is a shortcut command to `destroy`, `create`, `install_content, and `install_code` for the specified AEM type.
+
+It will also hit the homepage defined at `$AEM_PROJECT_HOME_PAGE` a few times, and print the HTTP response code.
 
 
 ### Script notes

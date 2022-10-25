@@ -115,7 +115,7 @@ stop_instance() {
 destroy_instance() {
   if [ ! -d $AEM_INSTANCE_HOME ]; then
     print_step "Cannot delete AEM ${AEM_TYPE}" "${AEM_INSTANCE_HOME} does not exist" error
-    exit 1
+    return 1
   fi
 
   print_step "Destroy AEM ${AEM_TYPE}" "at ${AEM_INSTANCE_HOME}?"
@@ -250,18 +250,28 @@ print_duration() {
 }
 
 print_usage() {
-  echo -e "${CYAN}aem${NC} is a helper script for managing local AEM instances. Usage:\n
-  ${BLUE}create             ${NC}author|publish
-  ${BLUE}destroy            ${NC}author|publish
-  ${BLUE}install_content    ${NC}author|publish
-  ${BLUE}install_project       ${NC}author|publish
-  ${BLUE}status             ${NC}[author|publish]
-  ${BLUE}start              ${NC}[author|publish]
-  ${BLUE}stop               ${NC}[author|publish]
-  ${BLUE}log                ${NC}author|publish [log_file]
-  ${BLUE}dispatcher
-  ${BLUE}help
-${NC}"
+  echo -e "\n${CYAN}aem.sh${NC} is a helper script for managing local AEM instances. Usage:\n${MAGENTA}
+  command             args                          description
+  -------             ----                          -----------${NC}"
+  print_usage_command "create" "author|publish" "create a new AEM instance"
+  print_usage_command "destroy" "author|publish" "stop and destroy an AEM instance"
+
+print_usage_command "install_content" "author|publish" "install the content packages under $AEM_SDK_HOME/packages"
+print_usage_command "install_project" "author|publish" "install the 'all' artifact of the project at $AEM_PROJECT_HOME"
+print_usage_command "status" "[author|publish]" "print the status of one or more AEM instances"
+print_usage_command "start" "[author|publish]" "start an AEM instance"
+print_usage_command "stop" "[author|publish]" "stop gracefully an AEM instance"
+print_usage_command "log" "author|publish [log_file]" "tail an AEM error.log file, or specify another one"
+print_usage_command "provision" "author|publish" "destroy, create, install code and content, and ping the homepage"
+print_usage_command "dispatcher" "" "start the local AEM Dispatcher"
+print_usage_command "help" "" "show this screen"
+}
+
+print_usage_command() {
+  local the_command=$1
+  local the_args=$2
+  local the_description=$3
+  printf "  ${BLUE}%-20s${NC}%-30s%-30s\n" "$the_command" "$the_args" "$the_description"
 }
 
 toggle_workflow_components() {
@@ -360,6 +370,29 @@ install_code() {
   fi
 }
 
+hit_homepage() {
+  if [[ -z "${AEM_PROJECT_HOME_PAGE}" ]]; then
+    print_step "Please set the AEM_PROJECT_HOME_PAGE environment variable." "" error
+    exit 1
+  fi
+
+  local the_url="$AEM_HTTP_LOCALHOST$AEM_PROJECT_HOME_PAGE"
+  local curl_auth_opts=
+  if [[ "$AEM_TYPE" == "author" ]]; then
+    the_url="$the_url?wcmmode=disabled"
+    curl_auth_opts=( -n )
+  fi
+
+  # curl the homepage 5 times, print the response code, and sleep 3 seconds
+  print_step "Hitting the homepage at" "$the_url"
+  for n in `seq 1 5`
+  do
+    the_http_code=$(curl "${curl_auth_opts[@]}" -s -o /dev/null -I -w "%{http_code}" "$the_url")
+    print_step "$n" "$the_http_code"
+    sleep 3
+  done
+}
+
 
 #
 #
@@ -401,6 +434,14 @@ do
       destroy_instance
       show_duration=true
       ;;
+    provision)
+      destroy_instance
+      create_instance
+      install_code
+      install_content
+      hit_homepage
+      show_duration=true
+      ;;
     status)
       print_aem_status
       ;;
@@ -435,6 +476,10 @@ case "$1" in
   log)
     set_env $2
     tail_log $3
+    ;;
+  hit_homepage)
+    set_env $2
+    hit_homepage
     ;;
   find_bundle)
     set_env author
