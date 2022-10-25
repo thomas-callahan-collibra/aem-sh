@@ -1,6 +1,5 @@
-#!/bin/zsh
+#!/bin/bash
 
-# - - - - - - - - - - - -
 # the functions
 
 set_env() {
@@ -391,7 +390,6 @@ hit_homepage() {
   done
 }
 
-# - - - - - - - - - - - -
 # the script
 
 # Track time of certain commands
