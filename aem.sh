@@ -374,7 +374,7 @@ hit_homepage() {
   fi
 
   local the_url="$AEM_HTTP_LOCALHOST$AEM_PROJECT_HOME_PAGE"
-  local curl_auth_opts=
+  local curl_auth_opts=()
   if [[ "$AEM_TYPE" == "author" ]]; then
     the_url="$the_url?wcmmode=disabled"
     curl_auth_opts=( -n )
