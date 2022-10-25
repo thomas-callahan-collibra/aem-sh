@@ -26,6 +26,8 @@ set_env() {
     export AEM_JVM_DEBUG_PORT=45030
   fi
 
+  export AEM_DISPATCHER_PORT=8080
+
   # get the local IP - it is used by Docker to reach the Publish instance
   AEM_HTTP_IP=$(ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1')
   export AEM_HTTP_IP;
@@ -324,7 +326,8 @@ start_dispatcher() {
   the_dispatcher_sub_folder=$(find "$the_dispatcher_folder" -type d -mindepth 1 -maxdepth 1)
 
   # start using the AEM Project Dispatcher source files
-  "$the_dispatcher_sub_folder"/bin/docker_run.sh "$AEM_PROJECT_HOME"/dispatcher/src "$AEM_HTTP_IP":$AEM_HTTP_PORT 8080
+  # in
+  "$the_dispatcher_sub_folder"/bin/docker_run.sh "$AEM_PROJECT_HOME"/dispatcher/src "$AEM_HTTP_IP":"$AEM_HTTP_PORT" $AEM_DISPATCHER_PORT &
 }
 
 install_package() {
