@@ -1,9 +1,7 @@
 #!/bin/bash
 
-#
-#
-# aem.sh functions
-#
+# - - - - - - - - - - - -
+# the functions
 
 set_env() {
   export AEM_SDK_HOME=~/aem-sdk
@@ -194,10 +192,10 @@ print_aem_status() {
 
   echo -e "AEM ${AEM_TYPE}${NC}"
   if [ -n "$the_process" ]; then
-    echo -e "  ${CYAN}Home${NC}       $the_sling_home${NC}"
-    echo -e "  ${CYAN}Bundles${NC}    ${the_bundles_status}${NC}"
-    echo -e "  ${CYAN}Run modes${NC}  $the_run_modes${NC}"
-    echo -e "  ${CYAN}Process${NC}    $the_process${NC}"
+    print_justified "Home" "$the_sling_home"
+    print_justified "Bundles" "$the_bundles_status"
+    print_justified "Run modes" "$the_run_modes"
+    print_justified "Process" "$the_process"
   fi
   echo ""
 }
@@ -231,13 +229,13 @@ print_step() {
   if [[ "$the_type" == "error" ]]; then
     the_line="${RED}${the_header}${NC}"
   else
-    the_line="${CYAN}${the_header}${NC}"
+    the_line="${BLUE}${the_header}${NC}"
   fi
 
   if [ ! -z "$the_object" ]; then
-    the_line="${the_line} ${BLUE}$the_object${NC}"
+    the_line="${the_line} ${CYAN}$the_object${NC}"
   fi
-  echo -e "$the_line"
+  echo -e "\n$the_line"
 }
 
 print_duration() {
@@ -250,24 +248,24 @@ print_duration() {
 }
 
 print_usage() {
-  echo -e "\n${CYAN}aem.sh${NC} is a helper script for managing local AEM instances. Usage:\n${MAGENTA}
+  echo -e "\n${BLUE}aem.sh${NC} is a helper script for managing local AEM instances. Usage:\n${MAGENTA}
   command             args                          description
   -------             ----                          -----------${NC}"
-  print_usage_command "create" "author|publish" "create a new AEM instance"
-  print_usage_command "destroy" "author|publish" "stop and destroy an AEM instance"
+  print_justified "create" "author|publish" "create a new AEM instance"
+  print_justified "destroy" "author|publish" "stop and destroy an AEM instance"
 
-print_usage_command "install_content" "author|publish" "install the content packages under $AEM_SDK_HOME/packages"
-print_usage_command "install_project" "author|publish" "install the 'all' artifact of the project at $AEM_PROJECT_HOME"
-print_usage_command "status" "[author|publish]" "print the status of one or more AEM instances"
-print_usage_command "start" "[author|publish]" "start an AEM instance"
-print_usage_command "stop" "[author|publish]" "stop gracefully an AEM instance"
-print_usage_command "log" "author|publish [log_file]" "tail an AEM error.log file, or specify another one"
-print_usage_command "provision" "author|publish" "destroy, create, install code and content, and ping the homepage"
-print_usage_command "dispatcher" "" "start the local AEM Dispatcher"
-print_usage_command "help" "" "show this screen"
+print_justified "install_content" "author|publish" "install the content packages under $AEM_SDK_HOME/packages"
+print_justified "install_project" "author|publish" "install the 'all' artifact of the project at $AEM_PROJECT_HOME"
+print_justified "status" "[author|publish]" "print the status of one or more AEM instances"
+print_justified "start" "[author|publish]" "start an AEM instance"
+print_justified "stop" "[author|publish]" "stop gracefully an AEM instance"
+print_justified "log" "author|publish [log_file]" "tail an AEM error.log file, or specify another one"
+print_justified "provision" "author|publish" "destroy, create, install code and content, and ping the homepage"
+print_justified "dispatcher" "" "start the local AEM Dispatcher"
+print_justified "help" "" "show this screen"
 }
 
-print_usage_command() {
+print_justified() {
   local the_command=$1
   local the_args=$2
   local the_description=$3
@@ -393,11 +391,8 @@ hit_homepage() {
   done
 }
 
-
-#
-#
-# aem.sh script
-#
+# - - - - - - - - - - - -
+# the script
 
 # Track time of certain commands
 BEGIN=$(date +%s)
