@@ -24,13 +24,16 @@ set_env() {
     export AEM_HTTP_PORT=4503
     export AEM_HTTPS_PORT=5503
     export AEM_JVM_DEBUG_PORT=45030
+
+  elif [[ "$1" == "web" ]]; then
+    export AEM_TYPE=dispatcher
+    export AEM_PUBLISH_PORT=4503
+    export AEM_HTTP_PORT=8080
+    # get the local IP - it is used by Docker to reach the Publish instance
+    AEM_PUBLISH_IP=$(ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1')
+    export AEM_PUBLISH_IP;
   fi
 
-  export AEM_DISPATCHER_PORT=8080
-
-  # get the local IP - it is used by Docker to reach the Publish instance
-  AEM_HTTP_IP=$(ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1')
-  export AEM_HTTP_IP;
 
   export AEM_INSTANCE_HOME=$AEM_SDK_HOME/$AEM_TYPE
   export AEM_LOCALHOST=localhost:$AEM_HTTP_PORT
@@ -38,32 +41,44 @@ set_env() {
   export AEM_LOCALHOST_SSL=localhost:$AEM_HTTPS_PORT
   export AEM_HTTPS_LOCALHOST=https://$AEM_LOCALHOST_SSL
 
-  # colors
-  export NC='\033[0m'
-  export RED='\033[0;31m'
-  export GREEN='\033[0;32m'
-  export YELLOW='\033[1;33m'
+  # colours!
   export CYAN='\033[0;36m'
+  export GREEN='\033[0;32m'
   export BLUE='\033[0;34m'
+  export RED='\033[0;31m'
   export MAGENTA='\033[0;35m'
+  export NC='\033[0m' # no colour
 }
 
 print_env() {
+
+  echo -e "
+    ${NC}AEM_SDK_HOME .....        ${GREEN}${AEM_SDK_HOME}
+    ${NC}AEM_SDK_ACTIVE .....      ${GREEN}${AEM_SDK_ACTIVE}
+    ${NC}AEM_PROJECT_HOME .....    ${GREEN}${AEM_PROJECT_HOME}
+    ${NC}AEM_INSTANCE_HOME .....   ${GREEN}${AEM_INSTANCE_HOME}"
+
+  if [[ "$AEM_TYPE" == "author" || "$AEM_TYPE" == "publish" ]]; then
+    echo -e "
+      ${NC}AEM_TYPE .....            ${GREEN}${AEM_TYPE}
+      ${NC}AEM_PUBLISH_IP .....         ${GREEN}${AEM_PUBLISH_IP}
+      ${NC}AEM_HTTP_PORT .....       ${GREEN}${AEM_HTTP_PORT}
+      ${NC}AEM_JVM_DEBUG_PORT .....  ${GREEN}${AEM_JVM_DEBUG_PORT}
+      ${NC}AEM_HTTP_LOCALHOST .....  ${GREEN}${AEM_HTTP_LOCALHOST}\n"
+  elif [[ "$AEM_TYPE" == "web" ]]; then
     echo -e "
       ${NC}AEM_TYPE .....            ${GREEN}${AEM_TYPE}
       ${NC}AEM_INSTANCE_HOME .....   ${GREEN}${AEM_INSTANCE_HOME}
-      ${NC}AEM_SDK_HOME .....        ${GREEN}${AEM_SDK_HOME}
-      ${NC}AEM_SDK_ACTIVE .....      ${GREEN}${AEM_SDK_ACTIVE}
-      ${NC}AEM_PROJECT_HOME .....    ${GREEN}${AEM_PROJECT_HOME}
-      ${NC}AEM_HTTP_IP .....         ${GREEN}${AEM_HTTP_IP}
-      ${NC}AEM_HTTP_PORT .....       ${GREEN}${AEM_HTTP_PORT}
-      ${NC}AEM_JVM_DEBUG_PORT .....  ${GREEN}${AEM_JVM_DEBUG_PORT}
-      ${NC}AEM_HTTP_LOCALHOST .....  ${GREEN}${AEM_HTTP_LOCALHOST}
-"
+
+      ${NC}AEM_PUBLISH_IP .....         ${GREEN}${AEM_PUBLISH_IP}
+      ${NC}AEM_HTTP_LOCALHOST .....  ${GREEN}${AEM_HTTP_LOCALHOST}\n"
+  fi
 
   # SSL, coming later
   # AEM_HTTPS_PORT .....      ${GREEN}${AEM_HTTPS_PORT}
   # AEM_HTTPS_LOCALHOST ..... ${GREEN}${AEM_HTTPS_LOCALHOST}
+
+
 }
 
 start_instance() {
@@ -327,7 +342,7 @@ start_dispatcher() {
 
   # start using the AEM Project Dispatcher source files
   # in
-  "$the_dispatcher_sub_folder"/bin/docker_run.sh "$AEM_PROJECT_HOME"/dispatcher/src "$AEM_HTTP_IP":"$AEM_HTTP_PORT" $AEM_DISPATCHER_PORT &
+  "$the_dispatcher_sub_folder"/bin/docker_run.sh "$AEM_PROJECT_HOME"/dispatcher/src "$AEM_PUBLISH_IP":"$AEM_PUBLISH_PORT" $AEM_HTTP_PORT &
 }
 
 install_package() {
@@ -404,12 +419,16 @@ aem_types=
 # Basic input validation
 if [[ "$1" == "" ]]; then
   print_usage
-  exit
-elif [[ "$2" == "" || "$2" == "both" || "$2" == "author publish" ]]; then
-  aem_types="author publish"
-elif [[ "$2" == "author" || "$2" == "publish" ]]; then
+  exit 0
+elif [[ "$2" == "author" || "$2" == "publish" || "$2" == "web" ]]; then
   aem_types=$2
+elif [[ "$2" == "" ]]; then
+  aem_types="author publish web"
 fi
+
+# These commands accept arguments:
+#   "author", "publish", "web", or "" – the latter implies all 3
+
 
 # These commands accept the arguments:
 #   "" - to run the command against both, or
@@ -418,14 +437,14 @@ for the_type in $aem_types
 do
   set_env "$the_type" # every command needs this
   case "$1" in
-    start)
-      start_instance
-      show_duration=true
-      ;;
-    stop)
-      stop_instance
-      show_duration=true
-      ;;
+#    start)
+#      start_instance
+#      show_duration=true
+#      ;;
+#    stop)
+#      stop_instance
+#      show_duration=true
+#      ;;
     destroy)
       destroy_instance
       show_duration=true
@@ -464,10 +483,6 @@ case "$1" in
     set_env $2
     install_code
     show_duration=true
-    ;;
-  dispatcher)
-    set_env publish
-    start_dispatcher
     ;;
   log)
     set_env $2
