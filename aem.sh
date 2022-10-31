@@ -61,7 +61,7 @@ start_instance() {
 
   local the_crx_quickstart="$AEM_INSTANCE_HOME/crx-quickstart"
   if [ ! -d $the_crx_quickstart ]; then
-    print_step "Skipping AEM ${AEM_TYPE} start" "${the_crx_quickstart} does not exist" error
+    print_step "Skipping AEM ${AEM_TYPE} start" "(${the_crx_quickstart} does not exist)" error
     return 1
   fi
 
@@ -82,13 +82,13 @@ stop_instance() {
   # Finds the AEM instance via lsof, stops it, and waits for the process to die peacefully
   the_aem_pid=$(ps -ef | grep java | grep "crx-quickstart" | grep "$AEM_TYPE" | awk '{ print $2 }')
   if [ -z "$the_aem_pid" ]; then
-    print_step "Skipping AEM ${AEM_TYPE} stop" "no process ID found"
+    print_step "Skipping AEM ${AEM_TYPE} stop" "(no process ID found)"
     return 1
   fi
 
   the_crx_quickstart=$(lsof -p "$the_aem_pid" | awk '{ print $9 }' | sort | grep -vE "(fonts|jvm|pipe|socket|tmp|x86|localhost|NAME|locale)" | grep -oE "^.*(publish|author)/crx-quickstart" | sort -u)
   if [ ! -d "$the_crx_quickstart" ]; then
-    print_step "Skipping AEM ${AEM_TYPE}" "${the_crx_quickstart} does not exist" error
+    print_step "Skipping AEM ${AEM_TYPE}" "(${the_crx_quickstart} does not exist)" error
     return 1
   fi
 
