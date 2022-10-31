@@ -115,7 +115,7 @@ destroy_instance() {
   fi
 
   if [[ "$1" != "force" ]]; then
-    print_step "Destroy AEM ${AEM_TYPE}" "at ${AEM_INSTANCE_HOME}?"
+    print_step "Destroy AEM ${AEM_TYPE} at" "${AEM_INSTANCE_HOME}${BLUE}?"
     read -p "Are you sure? [y/n] " -n 1 -r
     echo -e "${NC}"
   else
@@ -126,7 +126,7 @@ destroy_instance() {
     echo
     stop_instance force
     rm -rf $AEM_INSTANCE_HOME
-    print_step "Deleted" "${AEM_INSTANCE_HOME}"
+    print_step "Deleted" "${AEM_INSTANCE_HOME}${BLUE}!"
   else
     echo
   fi
