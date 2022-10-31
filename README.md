@@ -1,4 +1,6 @@
-The goal of `aem.sh` is to promote a clean working development environment by making it easy to manage the lifecycle of local [AEMaaCS](https://experienceleague.adobe.com/docs/experience-manager-cloud-service/content/overview/introduction.html?lang=en) instances: **Author**, **Publish**, and **Web** (Dispatcher).
+`aem.sh` exists to manage the lifecycle of local [AEMaaCS](https://experienceleague.adobe.com/docs/experience-manager-cloud-service/content/overview/introduction.html?lang=en) instances: **Author**, **Publish**, and **Web** (Dispatcher). The goal is to promote clean, stable, and up-to-date local working development environments.
+
+It is designed to fit in a single shell script.
 
 ## Dependencies
 
