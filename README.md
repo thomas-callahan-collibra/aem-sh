@@ -25,7 +25,6 @@ grep (GNU grep) 3.7
 ```
 
 * Set the following two environment variables, e.g. in your `.zshrc`:
-*
 ```
 export AEM_PROJECT_HOME=~/git/my-aem-project                   # point to your AEM project
 export AEM_PROJECT_HOME_PAGE=/content/my-co/us/en/home.html    # point to your AEM homepage

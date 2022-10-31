@@ -407,7 +407,7 @@ print_env_vars() {
 }
 
 print_usage() {
-  echo -e "${BLUE}aem.sh${NC} is a helper script for managing local AEM instances. Usage:${NC}\n"
+  echo -e "${BLUE}aem.sh${NC} is a helper script for managing local AEMaaCS instances. Usage:${NC}\n"
   print_justified "create" "author|publish" "create a new AEM instance"
   print_justified "destroy" "author|publish" "stop and destroy an AEM instance"
   print_justified "install_content" "author|publish" "install the content packages under: $AEM_SDK_HOME/packages"
