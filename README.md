@@ -1,4 +1,4 @@
-`aem.sh` exists to manage the lifecycle of local [AEMaaCS](https://experienceleague.adobe.com/docs/experience-manager-cloud-service/content/overview/introduction.html?lang=en) instances: **Author**, **Publish**, and **Web** (Dispatcher). The goal is to promote clean, stable, and up-to-date local working development environments.
+`aem.sh` exists to manage the lifecycle of local [AEMaaCS](https://experienceleague.adobe.com/docs/experience-manager-cloud-service/content/overview/introduction.html?lang=en) instances: **Author**, **Publish**, and **Web** (Dispatcher). The goal is to promote clean, stable, and up-to-date local development environments.
 
 It is designed to fit in a single shell script.
 
