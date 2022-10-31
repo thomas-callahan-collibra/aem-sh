@@ -1,39 +1,42 @@
 #!/bin/bash
 
-# the functions
+set_env_vars() {
+  if [[ "$1" == "author" ]]; then
+      export AEM_TYPE=author
+      export AEM_HTTP_PORT=4502
+      export AEM_HTTPS_PORT=5502
+      export AEM_JVM_DEBUG_PORT=45020
 
-set_env() {
+    elif [[ "$1" == "publish" ]]; then
+      export AEM_TYPE=publish
+      export AEM_HTTP_PORT=4503
+      export AEM_HTTPS_PORT=5503
+      export AEM_JVM_DEBUG_PORT=45030
+
+    elif [[ "$1" == "web" ]]; then
+      export AEM_TYPE=web
+      export AEM_HTTP_PORT=4503
+      export DOCKER_WEB_PORT=8080
+
+      # get the local IP - it is used by Docker to reach the Publish instance
+      AEM_PUBLISH_IP=$(ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1')
+      if [[ -z "${AEM_PUBLISH_IP}" ]]; then
+        print_step "Cannot compute AEM_PUBLISH_IP variable." "$AEM_PUBLISH_IP" error
+        exit 1
+      fi
+      export AEM_PUBLISH_IP;
+    fi
+
   export AEM_SDK_HOME=~/aem-sdk
-
+  mkdir -p $AEM_SDK_HOME
   if [[ -z "${AEM_PROJECT_HOME}" ]]; then
     print_step "Please set the AEM_PROJECT_HOME environment variable." "" error
     exit 1
   fi
 
+  # get the latest AEM SDK
   AEM_SDK_ACTIVE=$(find $AEM_SDK_HOME/sdk -mindepth 1 -type d | sort -nr)
   export AEM_SDK_ACTIVE
-
-  if [[ "$1" == "author" ]]; then
-    export AEM_TYPE=author
-    export AEM_HTTP_PORT=4502
-    export AEM_HTTPS_PORT=5502
-    export AEM_JVM_DEBUG_PORT=45020
-
-  elif [[ "$1" == "publish" ]]; then
-    export AEM_TYPE=publish
-    export AEM_HTTP_PORT=4503
-    export AEM_HTTPS_PORT=5503
-    export AEM_JVM_DEBUG_PORT=45030
-
-  elif [[ "$1" == "web" ]]; then
-    export AEM_TYPE=dispatcher
-    export AEM_PUBLISH_PORT=4503
-    export AEM_HTTP_PORT=8080
-    # get the local IP - it is used by Docker to reach the Publish instance
-    AEM_PUBLISH_IP=$(ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1')
-    export AEM_PUBLISH_IP;
-  fi
-
 
   export AEM_INSTANCE_HOME=$AEM_SDK_HOME/$AEM_TYPE
   export AEM_LOCALHOST=localhost:$AEM_HTTP_PORT
@@ -50,40 +53,13 @@ set_env() {
   export NC='\033[0m' # no colour
 }
 
-print_env() {
-
-  echo -e "
-    ${NC}AEM_SDK_HOME .....        ${GREEN}${AEM_SDK_HOME}
-    ${NC}AEM_SDK_ACTIVE .....      ${GREEN}${AEM_SDK_ACTIVE}
-    ${NC}AEM_PROJECT_HOME .....    ${GREEN}${AEM_PROJECT_HOME}
-    ${NC}AEM_INSTANCE_HOME .....   ${GREEN}${AEM_INSTANCE_HOME}"
-
-  if [[ "$AEM_TYPE" == "author" || "$AEM_TYPE" == "publish" ]]; then
-    echo -e "
-      ${NC}AEM_TYPE .....            ${GREEN}${AEM_TYPE}
-      ${NC}AEM_PUBLISH_IP .....         ${GREEN}${AEM_PUBLISH_IP}
-      ${NC}AEM_HTTP_PORT .....       ${GREEN}${AEM_HTTP_PORT}
-      ${NC}AEM_JVM_DEBUG_PORT .....  ${GREEN}${AEM_JVM_DEBUG_PORT}
-      ${NC}AEM_HTTP_LOCALHOST .....  ${GREEN}${AEM_HTTP_LOCALHOST}\n"
-  elif [[ "$AEM_TYPE" == "web" ]]; then
-    echo -e "
-      ${NC}AEM_TYPE .....            ${GREEN}${AEM_TYPE}
-      ${NC}AEM_INSTANCE_HOME .....   ${GREEN}${AEM_INSTANCE_HOME}
-
-      ${NC}AEM_PUBLISH_IP .....         ${GREEN}${AEM_PUBLISH_IP}
-      ${NC}AEM_HTTP_LOCALHOST .....  ${GREEN}${AEM_HTTP_LOCALHOST}\n"
+start_instance() {
+  if [[ "${AEM_TYPE}" == "web" ]]; then
+    start_dispatcher
+    return
   fi
 
-  # SSL, coming later
-  # AEM_HTTPS_PORT .....      ${GREEN}${AEM_HTTPS_PORT}
-  # AEM_HTTPS_LOCALHOST ..... ${GREEN}${AEM_HTTPS_LOCALHOST}
-
-
-}
-
-start_instance() {
   local the_crx_quickstart="$AEM_INSTANCE_HOME/crx-quickstart"
-
   if [ ! -d $the_crx_quickstart ]; then
     print_step "Skipping AEM ${AEM_TYPE} start" "${the_crx_quickstart} does not exist" error
     return 1
@@ -91,12 +67,18 @@ start_instance() {
 
   print_step "Starting AEM ${AEM_TYPE}" "at ${the_crx_quickstart}"
   $the_crx_quickstart/bin/start
-
   ( tail -f -n0 $the_crx_quickstart/logs/stdout.log & ) | grep -q "Startup completed"
   echo -e "Ready${NC}\n"
 }
 
 stop_instance() {
+  if [[ "${AEM_TYPE}" == "web" ]]; then
+    the_container_id="$(docker container ls | grep adobe/aem | awk '{print $1}')"
+    print_step "Stopping the Dispatcher Docker image" "$the_container_id"
+    docker stop "$the_container_id"
+    return
+  fi
+
   # Finds the AEM instance via lsof, stops it, and waits for the process to die peacefully
   the_aem_pid=$(ps -ef | grep java | grep "crx-quickstart" | grep "$AEM_TYPE" | awk '{ print $2 }')
   if [ -z "$the_aem_pid" ]; then
@@ -111,10 +93,10 @@ stop_instance() {
   fi
 
   if [[ "$1" == "force" ]]; then
-    print_step "Killing AEM ${AEM_TYPE}" "at ${the_crx_quickstart} with pid ${the_aem_pid}"
+    print_step "Killing AEM ${AEM_TYPE} with PID" "${the_aem_pid}"
     kill -9 "$the_aem_pid"
   else
-    print_step "Stopping AEM ${AEM_TYPE}" "at ${the_crx_quickstart} with pid ${the_aem_pid}"
+    print_step "Stopping AEM ${AEM_TYPE} with PID" "${the_aem_pid}"
     local the_pid
     the_pid=$( ps -ef | grep "$the_aem_pid" | grep -v grep )
     "$the_crx_quickstart"/bin/stop
@@ -132,13 +114,17 @@ destroy_instance() {
     return 1
   fi
 
-  print_step "Destroy AEM ${AEM_TYPE}" "at ${AEM_INSTANCE_HOME}?"
-  echo -e "${NC}"
-  read -p "Are you sure? [y/n] " -n 1 -r
+  if [[ "$1" != "force" ]]; then
+    print_step "Destroy AEM ${AEM_TYPE}" "at ${AEM_INSTANCE_HOME}?"
+    read -p "Are you sure? [y/n] " -n 1 -r
+    echo -e "${NC}"
+  else
+    REPLY="y"
+  fi
 
   if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo
-    stop_instance "force"
+    stop_instance force
     rm -rf $AEM_INSTANCE_HOME
     print_step "Deleted" "${AEM_INSTANCE_HOME}"
   else
@@ -189,31 +175,42 @@ create_instance() {
   # setup_aem_ssl
 }
 
-print_aem_status() {
-  the_bundles_status=$(curl -s -n "${AEM_HTTP_LOCALHOST}/system/console/bundles.json" | jq -r '.status' | sed "s/Bundle information: //g" )
-  the_process=$(ps aux | grep java | grep $AEM_TYPE)
+instance_status() {
+  if [[ "$AEM_TYPE" == "web" ]]; then
+    local the_docker_ls
+    the_docker_ls="$(docker container ls | grep adobe/aem)"
+    if [[ -z "${the_docker_ls}" ]]; then
+      echo -ne "${RED}AEM ${AEM_TYPE}"
+    else
+      echo -ne "${GREEN}AEM ${AEM_TYPE}${NC}\n${the_docker_ls}"
+    fi
 
-  the_sling_settings=$(curl -s -n "${AEM_HTTP_LOCALHOST}/system/console/status-slingsettings.txt" )
-  the_system_properties=$(curl -s -n "${AEM_HTTP_LOCALHOST}/system/console/status-System%20Properties.txt" )
-  the_sling_home=$(echo "${the_sling_settings}" | grep "Sling Home = " | sed "s/Sling Home = //g" )
-  the_run_modes=$(echo "${the_system_properties}" | grep "sling.run.modes = " | sed "s/sling.run.modes = //g" )
-
-  if [[ $the_bundles_status =~ all\ [0-9]{3}\ bundles\ active ]]; then
-    echo -ne ${GREEN}
-  elif [ ! -z "$the_bundles_status" ]; then
-    echo -ne ${RED}
   else
-    echo -ne ${RED}
+    the_bundles_status=$(curl -s -n "${AEM_HTTP_LOCALHOST}/system/console/bundles.json" | jq -r '.status' | sed "s/Bundle information: //g" )
+    the_process=$(ps aux | grep java | grep $AEM_TYPE)
+
+    the_sling_settings=$(curl -s -n "${AEM_HTTP_LOCALHOST}/system/console/status-slingsettings.txt" )
+    the_system_properties=$(curl -s -n "${AEM_HTTP_LOCALHOST}/system/console/status-System%20Properties.txt" )
+    the_sling_home=$(echo "${the_sling_settings}" | grep "Sling Home = " | sed "s/Sling Home = //g" )
+    the_run_modes=$(echo "${the_system_properties}" | grep "sling.run.modes = " | sed "s/sling.run.modes = //g" )
+
+    if [[ $the_bundles_status =~ all\ [0-9]{3}\ bundles\ active ]]; then
+      echo -ne ${GREEN}
+    elif [ ! -z "$the_bundles_status" ]; then
+      echo -ne ${RED}
+    else
+      echo -ne ${RED}
+    fi
+    echo "AEM ${AEM_TYPE}"
+    if [ -n "$the_process" ]; then
+      print_justified "Home" "$the_sling_home"
+      print_justified "Bundles" "$the_bundles_status"
+      print_justified "Run modes" "$the_run_modes"
+      print_justified "Process" "$the_process"
+    fi
   fi
 
-  echo -e "AEM ${AEM_TYPE}${NC}"
-  if [ -n "$the_process" ]; then
-    print_justified "Home" "$the_sling_home"
-    print_justified "Bundles" "$the_bundles_status"
-    print_justified "Run modes" "$the_run_modes"
-    print_justified "Process" "$the_process"
-  fi
-  echo ""
+  echo
 }
 
 tail_log() {
@@ -236,63 +233,12 @@ tail_log() {
   fi
 }
 
-print_step() {
-  local the_header=$1
-  local the_object=$2
-  local the_type=$3
-
-  local the_line
-  if [[ "$the_type" == "error" ]]; then
-    the_line="${RED}${the_header}${NC}"
-  else
-    the_line="${BLUE}${the_header}${NC}"
-  fi
-
-  if [ ! -z "$the_object" ]; then
-    the_line="${the_line} ${CYAN}$the_object${NC}"
-  fi
-  echo -e "\n$the_line"
-}
-
-print_duration() {
-  end=$(date +%s)
-  time=$(($end-$BEGIN))
-  ((h=${time}/3600))
-  ((m=(${time}%3600)/60))
-  ((s=${time}%60))
-  printf "T %02d:%02d:%02d\n" $h $m $s
-}
-
-print_usage() {
-  echo -e "\n${BLUE}aem.sh${NC} is a helper script for managing local AEM instances. Usage:\n${MAGENTA}
-  command             args                          description
-  -------             ----                          -----------${NC}"
-  print_justified "create" "author|publish" "create a new AEM instance"
-  print_justified "destroy" "author|publish" "stop and destroy an AEM instance"
-
-print_justified "install_content" "author|publish" "install the content packages under $AEM_SDK_HOME/packages"
-print_justified "install_project" "author|publish" "install the 'all' artifact of the project at $AEM_PROJECT_HOME"
-print_justified "status" "[author|publish]" "print the status of one or more AEM instances"
-print_justified "start" "[author|publish]" "start an AEM instance"
-print_justified "stop" "[author|publish]" "stop gracefully an AEM instance"
-print_justified "log" "author|publish [log_file]" "tail an AEM error.log file, or specify another one"
-print_justified "provision" "author|publish" "destroy, create, install code and content, and ping the homepage"
-print_justified "dispatcher" "" "start the local AEM Dispatcher"
-print_justified "help" "" "show this screen"
-}
-
-print_justified() {
-  local the_command=$1
-  local the_args=$2
-  local the_description=$3
-  printf "  ${BLUE}%-20s${NC}%-30s%-30s\n" "$the_command" "$the_args" "$the_description"
-}
-
 toggle_workflow_components() {
   if [[ "$1" == "enable" || "$1" == "disable" ]]; then
     the_action=$1
     curl -n -s --data "action=$the_action" "$AEM_HTTP_LOCALHOST/system/console/components/com.adobe.granite.workflow.core.launcher.WorkflowLauncherImpl"
     curl -n -s --data "action=$the_action" "$AEM_HTTP_LOCALHOST/system/console/components/com.adobe.granite.workflow.core.launcher.WorkflowLauncherListener"
+    echo
   fi
 }
 
@@ -342,7 +288,7 @@ start_dispatcher() {
 
   # start using the AEM Project Dispatcher source files
   # in
-  "$the_dispatcher_sub_folder"/bin/docker_run.sh "$AEM_PROJECT_HOME"/dispatcher/src "$AEM_PUBLISH_IP":"$AEM_PUBLISH_PORT" $AEM_HTTP_PORT &
+  "$the_dispatcher_sub_folder"/bin/docker_run.sh "$AEM_PROJECT_HOME"/dispatcher/src "$AEM_PUBLISH_IP:$AEM_HTTP_PORT" $DOCKER_WEB_PORT &
 }
 
 install_package() {
@@ -355,6 +301,7 @@ install_package() {
   the_package_name=$(basename $the_package_path)
   print_step "Installing package $the_package_name" "to $AEM_HTTP_LOCALHOST"
   curl -n -F file=@"${the_package_path}" -F name="${the_package_name}" -F force=true -F install=true "${AEM_HTTP_LOCALHOST}/crx/packmgr/service.jsp"
+  echo
 }
 
 install_content() {
@@ -399,13 +346,85 @@ hit_homepage() {
   fi
 
   # curl the homepage 5 times, print the response code, and sleep 3 seconds
-  print_step "Hitting the homepage at" "$the_url"
+  print_step "Hitting" "$the_url"
   for n in `seq 1 5`
   do
     the_http_code=$(curl "${curl_auth_opts[@]}" -s -o /dev/null -I -w "%{http_code}" "$the_url")
-    print_step "$n" "$the_http_code"
+    print_justified "$n" "$the_http_code"
     sleep 3
   done
+}
+
+print_justified() {
+  local the_command=$1
+  local the_args=$2
+  local the_description=$3
+  printf "  ${MAGENTA}%-20s${NC}%-30s%-30s\n" "$the_command" "$the_args" "$the_description"
+}
+
+print_step() {
+  local the_header=$1
+  local the_object=$2
+  local the_type=$3
+
+  local the_line
+  if [[ "$the_type" == "error" ]]; then
+    the_line="${RED}${the_header}${NC}"
+  else
+    the_line="${BLUE}${the_header}${NC}"
+  fi
+
+  if [ ! -z "$the_object" ]; then
+    the_line="${the_line} ${CYAN}$the_object${NC}"
+  fi
+  echo -e "$the_line"
+}
+
+print_duration() {
+  end=$(date +%s)
+  time=$(($end-$BEGIN))
+  ((h=${time}/3600))
+  ((m=(${time}%3600)/60))
+  ((s=${time}%60))
+  printf "T %02d:%02d:%02d\n" $h $m $s
+}
+
+print_env_vars() {
+  print_justified "AEM_TYPE" "$AEM_TYPE"
+  print_justified "AEM_SDK_HOME" "$AEM_SDK_HOME"
+  print_justified "AEM_SDK_ACTIVE" "$AEM_SDK_ACTIVE"
+  print_justified "AEM_PROJECT_HOME" "$AEM_PROJECT_HOME"
+  print_justified "AEM_INSTANCE_HOME" "$AEM_INSTANCE_HOME"
+
+  if [[ "$AEM_TYPE" == "author" || "$AEM_TYPE" == "publish" ]]; then
+    print_justified "AEM_JVM_DEBUG_PORT" "$AEM_JVM_DEBUG_PORT"
+
+  elif [[ "$AEM_TYPE" == "web" ]]; then
+    print_justified "DOCKER_WEB_PORT" "$DOCKER_WEB_PORT"
+    print_justified "AEM_PUBLISH_IP" "AEM_PUBLISH_IP"
+  fi
+  echo
+}
+
+print_usage() {
+  echo -e "${BLUE}aem.sh${NC} is a helper script for managing local AEM instances. Usage:${NC}\n"
+  print_justified "create" "author|publish" "create a new AEM instance"
+  print_justified "destroy" "author|publish" "stop and destroy an AEM instance"
+  print_justified "install_content" "author|publish" "install the content packages under: $AEM_SDK_HOME/packages"
+  print_justified "install_project" "author|publish" "install the 'all' artifact of the project: ${AEM_PROJECT_HOME}"
+  print_justified "status" "[author|publish]" "print the status of one or more AEM instances"
+  print_justified "start" "[author|publish|web]" "start an AEM instance, including web (Dispatcher)"
+  print_justified "stop" "[author|publish]" "stop gracefully an AEM instance"
+  print_justified "log" "author|publish [log_file]" "tail an AEM error.log file, or specify another one"
+  print_justified "provision" "author|publish" "destroy, create, install code and content, and ping the homepage"
+  print_justified "help" "" "show this screen"
+}
+
+no_web() {
+  if [[ "${AEM_TYPE}" == "web" ]]; then
+    print_step "'aem $1' not supported for" "$AEM_TYPE" error
+    exit 1
+  fi
 }
 
 # the script
@@ -426,74 +445,80 @@ elif [[ "$2" == "" ]]; then
   aem_types="author publish web"
 fi
 
-# These commands accept arguments:
-#   "author", "publish", "web", or "" – the latter implies all 3
 
-
-# These commands accept the arguments:
-#   "" - to run the command against both, or
-#   "author" / "publish" - to target a specific instance type
+# Possible arguments:
+#   - none (""), to run the command against all (where possible),
+#   - or, by instance type: "author", "publish", or "web"
+#
 for the_type in $aem_types
 do
-  set_env "$the_type" # every command needs this
+  set_env_vars "$the_type" # every command needs this
   case "$1" in
-#    start)
-#      start_instance
-#      show_duration=true
-#      ;;
-#    stop)
-#      stop_instance
-#      show_duration=true
-#      ;;
+    start)
+      start_instance
+      show_duration=true
+      ;;
+    stop)
+      stop_instance
+      show_duration=true
+      ;;
+    status)
+      instance_status
+      ;;
     destroy)
+      no_web $1
       destroy_instance
       show_duration=true
       ;;
     provision)
-      destroy_instance
+      no_web $1
+      destroy_instance force
       create_instance
       install_code
       install_content
       hit_homepage
       show_duration=true
       ;;
-    status)
-      print_aem_status
-      ;;
-    print_env)
-      print_env
-      ;;
+    env_vars)
+      print_env_vars
+    ;;
   esac
 done
 
 # These commands need arguments "author" or "publish" to target a specific instance type.
 case "$1" in
   create)
-    set_env $2
-    print_env
+    no_web $1
+    set_env_vars $2
+    print_env_vars
     create_instance
     show_duration=true
     ;;
   install_content)
-    set_env $2
+    no_web $1
+    set_env_vars $2
     install_content
     show_duration=true
     ;;
   install_code)
-    set_env $2
+    no_web $1
+    set_env_vars $2
     install_code
     show_duration=true
     ;;
   log)
-    set_env $2
+    no_web $1
+    set_env_vars $2
     tail_log $3
     ;;
   hit_homepage)
-    set_env $2
+    no_web $1
+    set_env_vars $2
     hit_homepage
     ;;
   find_bundle)
-    set_env author
+    no_web $1
+    set_env_vars author
     find_aem_bundle $3
     ;;
   help)
