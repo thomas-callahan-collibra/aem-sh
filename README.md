@@ -1,4 +1,4 @@
-The goal of `aem.sh` is to promote a clean working development environment by making it easy to manage the lifecycle of local AEMaaCS instances: Author, Publish, Dispatcher.
+The goal of `aem.sh` is to promote a clean working development environment by making it easy to manage the lifecycle of local AEMaaCS instances: Author, Publish, and Web (Dispatcher).
 
 ## Dependencies
 
@@ -70,7 +70,11 @@ When creating the instance, the ootb `start` scripts are touched:
 
 #### Start
 
-`aem start author` will the specified AEM instance, and wait until all the bundles are active.
+`aem start author` will start the specified AEM instance, and wait until all the bundles are active.
+
+`aem start web` will start the Docker container image running Apache Web Server and Dispatcher using the configs and rules under `$AEM_PROJECT_HOME/dispatcher/src`.
+
+Then you can browse the site at `http://localhost:8080/`.  Make sure Docker Desktop and AEM Publisher are running
 
 
 #### Log
@@ -95,15 +99,6 @@ DAM workflows are disabled before installing, and re-enabled post-install, to pr
 #### Install code
 
 `aem install_code publish` will look for the `all` build artifact under `$AEM_PROJECT_HOME/all/target` (this assumes the project was built) and upload and install it to the specified instance.
-
-
-#### Dispatcher
-
-`aem dispatcher` will start the Docker container with Apache/Dispatcher using the configs and rules under `$AEM_PROJECT_HOME/dispatcher/src`.
-
-Then you can browse the site at `http://localhost:8080/`.
-
-Make sure Docker Desktop and AEM Publisher are running
 
 
 #### Provision
