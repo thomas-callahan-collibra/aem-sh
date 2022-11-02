@@ -267,8 +267,11 @@ find_aem_bundle() {
 }
 
 start_dispatcher() {
+  local the_dispatcher_configs="$AEM_PROJECT_HOME/dispatcher/src"
   local the_dispatcher_folder=$AEM_SDK_HOME/dispatcher
   local the_destination_script=$the_dispatcher_folder/dispatcher.sh
+
+  print_step "Starting Dispatcher with config files at" "$the_dispatcher_configs"
 
   local the_source_script
   the_source_script="$(find "$AEM_SDK_ACTIVE" -type f -name '*.sh')"
@@ -287,8 +290,7 @@ start_dispatcher() {
   the_dispatcher_sub_folder=$(find "$the_dispatcher_folder" -type d -mindepth 1 -maxdepth 1)
 
   # start using the AEM Project Dispatcher source files
-  # in
-  "$the_dispatcher_sub_folder"/bin/docker_run.sh "$AEM_PROJECT_HOME"/dispatcher/src "$AEM_PUBLISH_IP:$AEM_HTTP_PORT" $DOCKER_WEB_PORT &
+  DISP_LOG_LEVEL=Debug REWRITE_LOG_LEVEL=Debug "$the_dispatcher_sub_folder/bin/docker_run.sh" "$the_dispatcher_configs" "$AEM_PUBLISH_IP:$AEM_HTTP_PORT" $DOCKER_WEB_PORT &
 }
 
 install_package() {
