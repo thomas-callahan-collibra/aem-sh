@@ -115,7 +115,7 @@ destroy_instance() {
   fi
 
   if [[ "$1" != "force" ]]; then
-    print_step "Destroy AEM ${AEM_TYPE} at" "${AEM_INSTANCE_HOME}${BLUE}?"
+    print_step "Destroy AEM ${AEM_TYPE} at" "${AEM_INSTANCE_HOME}?"
     read -p "Are you sure? [y/n] " -n 1 -r
     echo -e "${NC}"
   else
@@ -126,7 +126,7 @@ destroy_instance() {
     echo
     stop_instance force
     rm -rf $AEM_INSTANCE_HOME
-    print_step "Deleted" "${AEM_INSTANCE_HOME}${BLUE}!"
+    print_step "Deleted" "${AEM_INSTANCE_HOME}!"
   else
     echo
   fi
@@ -162,7 +162,7 @@ create_instance() {
   sed -i "s/-server -Xmx1024m -XX:MaxPermSize=256M/-server -Xmx2048m -XX:MaxPermSize=512M/g" $the_start_script
 
   # first boot
-  bash $the_start_script
+  $the_start_script
   block_until_bundles_active
 
   # TODO
@@ -409,7 +409,7 @@ print_env_vars() {
 }
 
 print_usage() {
-  echo -e "${BLUE}aem.sh${NC} is a helper script for managing local AEMaaCS instances. Usage:${NC}\n"
+  echo -e "${BLUE}aem.sh${NC} is a helper script for managing local AEMaaCS instances. Usage:\n"
   print_justified "create" "author|publish" "create a new AEM instance"
   print_justified "destroy" "author|publish" "stop and destroy an AEM instance"
   print_justified "install_content" "author|publish" "install the content packages under: $AEM_SDK_HOME/packages"
