@@ -17,14 +17,7 @@ set_env_vars() {
       export AEM_TYPE=web
       export AEM_HTTP_PORT=4503
       export DOCKER_WEB_PORT=8080
-
-      # get the local IP - it is used by Docker to reach the Publish instance
-      AEM_PUBLISH_IP=$(ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1')
-      if [[ -z "${AEM_PUBLISH_IP}" ]]; then
-        print_step "Cannot compute AEM_PUBLISH_IP variable." "$AEM_PUBLISH_IP" error
-        exit 1
-      fi
-      export AEM_PUBLISH_IP;
+      export DOCKER_INTERNAL_HOST="host.docker.internal:$AEM_HTTP_PORT"
     fi
 
   export AEM_SDK_HOME=~/aem-sdk
@@ -214,22 +207,50 @@ instance_status() {
 }
 
 tail_log() {
-  local the_log_filename=error.log
+  # determine the log file name
+  local the_log_filename
   if [ -n "$1" ]; then
     the_log_filename=$1
+  else
+    if [[ "$AEM_TYPE" == "web" ]]; then
+      # available logs:
+      # httpd_access.log
+      # httpd_error.log
+      # dispatcher.log
+      # healthcheck_access_log
+      # httpd_mod_security_audit.log
+      # httpd_mod_security_debug.log
+      the_log_filename=httpd_error.log
+    else
+      # available logs:
+      # error.log
+      # access.log
+      # request.log
+      # queryrecorder.log
+      # stdout.log
+      # history.log
+      the_log_filename=error.log
+    fi
   fi
 
+  # append extension if missing
   if [[ ! $the_log_filename =~ .log$ ]]; then
     the_log_filename="${the_log_filename}.log"
   fi
 
-  the_log_file="$AEM_INSTANCE_HOME/crx-quickstart/logs/$the_log_filename"
-
-  if [ -f "$the_log_file" ]; then
-    tail -n 0 -f "$the_log_file"
-  else
-    print_step "File does not exist:" "$the_log_file" error
-    exit 1
+  # tail the log
+  if [[ "$AEM_TYPE" == "web" ]]; then # the log in Docker
+    the_container_id="$(docker container ls | grep adobe/aem | awk '{print $1}')"
+    the_log_file="/var/log/apache2/$the_log_filename"
+    docker exec -it "$the_container_id" tail -f "$the_log_file"
+  else # the local AEM log
+    the_log_file="$AEM_INSTANCE_HOME/crx-quickstart/logs/$the_log_filename"
+    if [ -f "$the_log_file" ]; then
+      tail -n 0 -f "$the_log_file"
+    else
+      print_step "File does not exist:" "$the_log_file" error
+      exit 1
+    fi
   fi
 }
 
@@ -290,7 +311,8 @@ start_dispatcher() {
   the_dispatcher_sub_folder=$(find "$the_dispatcher_folder" -type d -mindepth 1 -maxdepth 1)
 
   # start using the AEM Project Dispatcher source files
-  DISP_LOG_LEVEL=Debug REWRITE_LOG_LEVEL=Debug "$the_dispatcher_sub_folder/bin/docker_run.sh" "$the_dispatcher_configs" "$AEM_PUBLISH_IP:$AEM_HTTP_PORT" $DOCKER_WEB_PORT &
+  # TODO Toggle "DISP_LOG_LEVEL=Debug REWRITE_LOG_LEVEL=Debug" with a flag?
+  "$the_dispatcher_sub_folder/bin/docker_run.sh" "$the_dispatcher_configs" "$DOCKER_INTERNAL_HOST" "$DOCKER_WEB_PORT" > /dev/null 2>&1 &
 }
 
 install_package() {
@@ -361,7 +383,7 @@ print_justified() {
   local the_command=$1
   local the_args=$2
   local the_description=$3
-  printf "  ${MAGENTA}%-20s${NC}%-30s%-30s\n" "$the_command" "$the_args" "$the_description"
+  printf "  ${MAGENTA}%-25s${BLUE}%-35s${GREEN}%-50s${NC}\n" "$the_command" "$the_args" "$the_description"
 }
 
 print_step() {
@@ -408,18 +430,21 @@ print_env_vars() {
   echo
 }
 
-print_usage() {
-  echo -e "${BLUE}aem.sh${NC} is a helper script for managing local AEMaaCS instances. Usage:\n"
-  print_justified "create" "author|publish" "create a new AEM instance"
-  print_justified "destroy" "author|publish" "stop and destroy an AEM instance"
-  print_justified "install_content" "author|publish" "install the content packages under: $AEM_SDK_HOME/packages"
-  print_justified "install_project" "author|publish" "install the 'all' artifact of the project: ${AEM_PROJECT_HOME}"
-  print_justified "status" "[author|publish]" "print the status of one or more AEM instances"
-  print_justified "start" "[author|publish|web]" "start an AEM instance, including web (Dispatcher)"
-  print_justified "stop" "[author|publish]" "stop gracefully an AEM instance"
-  print_justified "log" "author|publish [log_file]" "tail an AEM error.log file, or specify another one"
-  print_justified "provision" "author|publish" "destroy, create, install code and content, and ping the homepage"
-  print_justified "help" "" "show this screen"
+print_help() {
+  echo -e "${BLUE}aem.sh${NC} is a helper script for managing local AEMaaCS instances: Author, Publish, Web (Dispatcher). Usage:\n"
+  print_justified "COMMAND" "ARG" "DESCRIPTION"
+  print_justified "-------" "---" "-----------"
+  print_justified "create" "author|publish" "Creates a new AEM instance at AEM_SDK_HOME."
+  print_justified "destroy" "author|publish" "Stops and destroys an AEM instance by deleting its directory."
+  print_justified "install_content" "author|publish" "Installs the content packages at AEM_SDK_HOME/packages."
+  print_justified "install_project" "author|publish" "Installs the 'all' artifact of the project at AEM_PROJECT_HOME."
+  print_justified "provision" "author|publish" "Destroys and creates a new AEM instance, installs code and content, and pings the homepage."
+  print_justified "status" "[author|publish|web]" "Prints the status of an AEM or Web instances. Specify no argument to print all statuses."
+  print_justified "start" "[author|publish|web]" "Starts an AEM or Web instance. Specify no argument to start all instances."
+  print_justified "stop" "[author|publish|web]" "Stops gracefully an AEM or Web instance. Specify no argument to stop all instances."
+  print_justified "log" "author|publish|web [log_file]" "Tails a log file from AEM or Web. Specify an exact filename to override the defaults: 'error.log' for AEM and 'httpd_error.log' for Web."
+  print_justified "help" "" "Shows this screen!"
+  print_justified ""
 }
 
 no_web() {
@@ -439,7 +464,7 @@ aem_types=
 
 # Basic input validation
 if [[ "$1" == "" ]]; then
-  print_usage
+  print_help
   exit 0
 elif [[ "$2" == "author" || "$2" == "publish" || "$2" == "web" ]]; then
   aem_types=$2
@@ -509,7 +534,6 @@ case "$1" in
     show_duration=true
     ;;
   log)
-    no_web $1
     set_env_vars $2
     tail_log $3
     ;;
@@ -524,7 +548,7 @@ case "$1" in
     find_aem_bundle $3
     ;;
   help)
-    print_usage
+    print_help
     ;;
 esac
 
