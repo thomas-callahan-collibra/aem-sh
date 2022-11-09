@@ -28,7 +28,7 @@ set_env_vars() {
   fi
 
   # get the latest AEM SDK
-  AEM_SDK_ACTIVE=$(find $AEM_SDK_HOME/sdk -mindepth 1 -type d | sort -nr)
+  AEM_SDK_ACTIVE=$(find $AEM_SDK_HOME/sdk -mindepth 1 -type d | sort -nr | tr -d '\n')
   export AEM_SDK_ACTIVE
 
   export AEM_INSTANCE_HOME=$AEM_SDK_HOME/$AEM_TYPE
@@ -36,6 +36,7 @@ set_env_vars() {
   export AEM_HTTP_LOCALHOST=http://$AEM_LOCALHOST
   export AEM_LOCALHOST_SSL=localhost:$AEM_HTTPS_PORT
   export AEM_HTTPS_LOCALHOST=https://$AEM_LOCALHOST_SSL
+  export AEM_HTTPS_HOSTNAME="https://aem-${AEM_TYPE}-local.dev"
 
   # colours!
   export CYAN='\033[0;36m'
@@ -137,35 +138,73 @@ create_instance() {
   # Set port
   local the_start_script=$AEM_INSTANCE_HOME/crx-quickstart/bin/start
 
-  print_step "Setting port" "${AEM_HTTP_PORT}"
+  print_justified "Setting port" "${AEM_HTTP_PORT}"
   sed -i "s/CQ_PORT=4502/CQ_PORT=${AEM_HTTP_PORT}/g" $the_start_script
 
   # Set the run modes
   local the_run_modes="${AEM_TYPE},local"
-  print_step "Setting runmodes" "${the_run_modes}"
+  print_justified "Setting runmodes" "${the_run_modes}"
   sed -i "s/CQ_RUNMODE='author'/CQ_RUNMODE='${the_run_modes}'/g" $the_start_script
 
   # Set the JVM debugger
   local the_debug_flags="-Xdebug -Xrunjdwp:transport=dt_socket,address=*:${AEM_JVM_DEBUG_PORT},suspend=n,server=y"
-  print_step "Setting JVM debugger port" "${AEM_JVM_DEBUG_PORT}"
+  print_justified "Setting JVM debugger port" "${AEM_JVM_DEBUG_PORT}"
   sed -i "s/headless=true'/headless=true ${the_debug_flags}'/g" $the_start_script
 
   # Double the memory allocation
-  print_step "Doubling memory" ""
+  print_justified "Doubling memory" ""
   sed -i "s/-server -Xmx1024m -XX:MaxPermSize=256M/-server -Xmx2048m -XX:MaxPermSize=512M/g" $the_start_script
 
   # first boot
   $the_start_script
   block_until_bundles_active
 
-  # TODO
-  # Install replication agent
-  #if [[ "$AEM_TYPE" == "author" ]]; then
-    # configure_replication_agent
-  # fi
+  setup_instance_ssl
 
-  # TODO
-  # setup_aem_ssl
+  if [[ "$AEM_TYPE" == "author" ]]; then
+    print_justified "Configuring the Publish replication agent on Author"
+
+    # get the encrypted password for admin and set in the replication agent config
+    local the_encrypted_password
+    the_encrypted_password=$(curl -s -n -F datum=admin "${AEM_HTTP_LOCALHOST}/system/console/crypto/.json" | jq -r '.protected' )
+
+    curl -n -F "enabled=true" -F "userId=" \
+            -F "transportUser=admin" -F "transportPassword=${the_encrypted_password}" \
+            -F "transportUri=http://localhost:4503/bin/receive?sling:authRequestLogin=1" \
+            "${AEM_HTTP_LOCALHOST}/etc/replication/agents.author/publish/jcr:content"
+ fi
+}
+
+setup_instance_ssl() {
+  print_step "Setting SSL in AEM" "${AEM_TYPE}"
+  local the_crypto_dir=${AEM_INSTANCE_HOME}/.crypto_keys
+  mkdir -p $the_crypto_dir
+
+  # create the private key
+  local the_pass_phrase="password"
+  openssl genrsa -aes256 -passout pass:${the_pass_phrase} -out "$the_crypto_dir/localhostprivate.key" 4096
+
+  # generate a Certificate Signing Request (CSR) using private key
+  openssl rsa -passin pass:${the_pass_phrase} -in "$the_crypto_dir/localhostprivate.key" -out "$the_crypto_dir/localhostprivate.key"
+  openssl req -sha256 -new -key "$the_crypto_dir/localhostprivate.key" -out "$the_crypto_dir/localhost.csr" -subj '/CN=localhost'
+
+  # generate SSL certificate and sign it with the private key.
+  # expires one year from now.
+  openssl x509 -req -days 365 -in "$the_crypto_dir/localhost.csr" -signkey "$the_crypto_dir/localhostprivate.key" -out "$the_crypto_dir/localhost.crt"
+
+  # convert the Private Key to DER format (the SSL wizard requires key to be in DER format)
+  openssl pkcs8 -topk8 -inform PEM -outform DER -in "$the_crypto_dir/localhostprivate.key" -out "$the_crypto_dir/localhostprivate.der" -nocrypt
+
+  # configure AEM via the SSL wizard
+  curl -n -F "keystorePassword=${the_pass_phrase}" -F "keystorePasswordConfirm=${the_pass_phrase}" \
+          -F "truststorePassword=${the_pass_phrase}" -F "truststorePasswordConfirm=${the_pass_phrase}" \
+          -F "privatekeyFile=@$the_crypto_dir/localhostprivate.der" -F "certificateFile=@$the_crypto_dir/localhost.crt" \
+          -F "httpsHostname=${AEM_HTTPS_HOSTNAME}" -F "httpsPort=${AEM_HTTPS_PORT}" \
+          "${AEM_HTTP_LOCALHOST}/libs/granite/security/post/sslSetup.html"
+
+  # Once you have executed the command, verify that all the certificates made it to the keystore. Check the keystore from:
+  # http://localhost:4502/libs/granite/security/content/userEditor.html/home/users/system/security/ssl-service
+  # https://experienceleague.adobe.com/docs/experience-manager-65/administering/security/ssl-by-default.html
 }
 
 instance_status() {
@@ -421,12 +460,16 @@ print_env_vars() {
   print_justified "AEM_INSTANCE_HOME" "$AEM_INSTANCE_HOME"
 
   if [[ "$AEM_TYPE" == "author" || "$AEM_TYPE" == "publish" ]]; then
+    print_justified "AEM_HTTP_PORT" "$AEM_HTTP_PORT"
+    print_justified "AEM_HTTPS_PORT" "$AEM_HTTPS_PORT"
+    print_justified "AEM_HTTPS_HOSTNAME" "$AEM_HTTPS_HOSTNAME"
     print_justified "AEM_JVM_DEBUG_PORT" "$AEM_JVM_DEBUG_PORT"
 
   elif [[ "$AEM_TYPE" == "web" ]]; then
     print_justified "DOCKER_WEB_PORT" "$DOCKER_WEB_PORT"
-    print_justified "AEM_PUBLISH_IP" "AEM_PUBLISH_IP"
+    print_justified "DOCKER_INTERNAL_HOST" "$DOCKER_INTERNAL_HOST"
   fi
+
   echo
 }
 
