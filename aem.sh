@@ -2,23 +2,23 @@
 
 set_env_vars() {
   if [[ "$1" == "author" ]]; then
-      export AEM_TYPE=author
-      export AEM_HTTP_PORT=4502
-      export AEM_HTTPS_PORT=5502
-      export AEM_JVM_DEBUG_PORT=45020
+    export AEM_TYPE=author
+    export AEM_HTTP_PORT=4502
+    export AEM_HTTPS_PORT=5502
+    export AEM_JVM_DEBUG_PORT=45020
 
-    elif [[ "$1" == "publish" ]]; then
-      export AEM_TYPE=publish
-      export AEM_HTTP_PORT=4503
-      export AEM_HTTPS_PORT=5503
-      export AEM_JVM_DEBUG_PORT=45030
+  elif [[ "$1" == "publish" ]]; then
+    export AEM_TYPE=publish
+    export AEM_HTTP_PORT=4503
+    export AEM_HTTPS_PORT=5503
+    export AEM_JVM_DEBUG_PORT=45030
 
-    elif [[ "$1" == "web" ]]; then
-      export AEM_TYPE=web
-      export AEM_HTTP_PORT=4503
-      export DOCKER_WEB_PORT=8080
-      export DOCKER_INTERNAL_HOST="host.docker.internal:$AEM_HTTP_PORT"
-    fi
+  elif [[ "$1" == "web" ]]; then
+    export AEM_TYPE=web
+    export AEM_HTTP_PORT=4503
+    export DOCKER_WEB_PORT=8080
+    export DOCKER_INTERNAL_HOST="host.docker.internal:$AEM_HTTP_PORT"
+  fi
 
   export AEM_SDK_HOME=~/aem-sdk
   mkdir -p $AEM_SDK_HOME
@@ -141,19 +141,20 @@ create_instance() {
   print_justified "Setting port" "${AEM_HTTP_PORT}"
   sed -i "s/CQ_PORT=4502/CQ_PORT=${AEM_HTTP_PORT}/g" $the_start_script
 
+  # Set the JVM debugger
+  local the_debug_flags="-Xdebug -Xrunjdwp:transport=dt_socket,address=*:${AEM_JVM_DEBUG_PORT},suspend=n,server=y"
+  print_justified "Setting debugger port" "${AEM_JVM_DEBUG_PORT}"
+  sed -i "s/headless=true'/headless=true ${the_debug_flags}'/g" $the_start_script
+
   # Set the run modes
   local the_run_modes="${AEM_TYPE},local"
   print_justified "Setting runmodes" "${the_run_modes}"
   sed -i "s/CQ_RUNMODE='author'/CQ_RUNMODE='${the_run_modes}'/g" $the_start_script
 
-  # Set the JVM debugger
-  local the_debug_flags="-Xdebug -Xrunjdwp:transport=dt_socket,address=*:${AEM_JVM_DEBUG_PORT},suspend=n,server=y"
-  print_justified "Setting JVM debugger port" "${AEM_JVM_DEBUG_PORT}"
-  sed -i "s/headless=true'/headless=true ${the_debug_flags}'/g" $the_start_script
-
   # Double the memory allocation
-  print_justified "Doubling memory" ""
-  sed -i "s/-server -Xmx1024m -XX:MaxPermSize=256M/-server -Xmx2048m -XX:MaxPermSize=512M/g" $the_start_script
+  local the_memory="-server -Xmx2048m -XX:MaxPermSize=512M"
+  print_justified "Setting memory" "$the_memory"
+  sed -i "s/-server -Xmx1024m -XX:MaxPermSize=256M/${the_memory}/g" $the_start_script
 
   # first boot
   $the_start_script
@@ -176,7 +177,7 @@ create_instance() {
 }
 
 setup_instance_ssl() {
-  print_step "Setting SSL in AEM" "${AEM_TYPE}"
+  print_step "Setting SSL with hostname" "${AEM_HTTPS_HOSTNAME}"
   local the_crypto_dir=${AEM_INSTANCE_HOME}/.crypto_keys
   mkdir -p $the_crypto_dir
 
@@ -196,11 +197,11 @@ setup_instance_ssl() {
   openssl pkcs8 -topk8 -inform PEM -outform DER -in "$the_crypto_dir/localhostprivate.key" -out "$the_crypto_dir/localhostprivate.der" -nocrypt
 
   # configure AEM via the SSL wizard
-  curl -n -F "keystorePassword=${the_pass_phrase}" -F "keystorePasswordConfirm=${the_pass_phrase}" \
-          -F "truststorePassword=${the_pass_phrase}" -F "truststorePasswordConfirm=${the_pass_phrase}" \
-          -F "privatekeyFile=@$the_crypto_dir/localhostprivate.der" -F "certificateFile=@$the_crypto_dir/localhost.crt" \
-          -F "httpsHostname=${AEM_HTTPS_HOSTNAME}" -F "httpsPort=${AEM_HTTPS_PORT}" \
-          "${AEM_HTTP_LOCALHOST}/libs/granite/security/post/sslSetup.html"
+  curl -o /dev/null -n -F "keystorePassword=${the_pass_phrase}" -F "keystorePasswordConfirm=${the_pass_phrase}" \
+                       -F "truststorePassword=${the_pass_phrase}" -F "truststorePasswordConfirm=${the_pass_phrase}" \
+                       -F "privatekeyFile=@$the_crypto_dir/localhostprivate.der" -F "certificateFile=@$the_crypto_dir/localhost.crt" \
+                       -F "httpsHostname=${AEM_HTTPS_HOSTNAME}" -F "httpsPort=${AEM_HTTPS_PORT}" \
+                       "${AEM_HTTP_LOCALHOST}/libs/granite/security/post/sslSetup.html"
 
   # Once you have executed the command, verify that all the certificates made it to the keystore. Check the keystore from:
   # http://localhost:4502/libs/granite/security/content/userEditor.html/home/users/system/security/ssl-service
