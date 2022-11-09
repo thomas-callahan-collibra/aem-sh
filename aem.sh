@@ -1,6 +1,13 @@
 #!/bin/bash
 
 set_env_vars() {
+  export AEM_SDK_HOME=~/aem-sdk
+  mkdir -p $AEM_SDK_HOME
+  if [[ -z "${AEM_PROJECT_HOME}" ]]; then
+    print_step "Please set the AEM_PROJECT_HOME environment variable." "" error
+    exit 1
+  fi
+
   if [[ "$1" == "author" ]]; then
     export AEM_TYPE=author
     export AEM_HTTP_PORT=4502
@@ -18,13 +25,6 @@ set_env_vars() {
     export AEM_HTTP_PORT=4503
     export DOCKER_WEB_PORT=8080
     export DOCKER_INTERNAL_HOST="host.docker.internal:$AEM_HTTP_PORT"
-  fi
-
-  export AEM_SDK_HOME=~/aem-sdk
-  mkdir -p $AEM_SDK_HOME
-  if [[ -z "${AEM_PROJECT_HOME}" ]]; then
-    print_step "Please set the AEM_PROJECT_HOME environment variable." "" error
-    exit 1
   fi
 
   # get the latest AEM SDK
@@ -197,11 +197,11 @@ setup_instance_ssl() {
   openssl pkcs8 -topk8 -inform PEM -outform DER -in "$the_crypto_dir/localhostprivate.key" -out "$the_crypto_dir/localhostprivate.der" -nocrypt
 
   # configure AEM via the SSL wizard
-  curl -o /dev/null -n -F "keystorePassword=${the_pass_phrase}" -F "keystorePasswordConfirm=${the_pass_phrase}" \
-                       -F "truststorePassword=${the_pass_phrase}" -F "truststorePasswordConfirm=${the_pass_phrase}" \
-                       -F "privatekeyFile=@$the_crypto_dir/localhostprivate.der" -F "certificateFile=@$the_crypto_dir/localhost.crt" \
-                       -F "httpsHostname=${AEM_HTTPS_HOSTNAME}" -F "httpsPort=${AEM_HTTPS_PORT}" \
-                       "${AEM_HTTP_LOCALHOST}/libs/granite/security/post/sslSetup.html"
+  curl -s -o /dev/null -n -F "keystorePassword=${the_pass_phrase}" -F "keystorePasswordConfirm=${the_pass_phrase}" \
+                          -F "truststorePassword=${the_pass_phrase}" -F "truststorePasswordConfirm=${the_pass_phrase}" \
+                          -F "privatekeyFile=@$the_crypto_dir/localhostprivate.der" -F "certificateFile=@$the_crypto_dir/localhost.crt" \
+                          -F "httpsHostname=${AEM_HTTPS_HOSTNAME}" -F "httpsPort=${AEM_HTTPS_PORT}" \
+                          "${AEM_HTTP_LOCALHOST}/libs/granite/security/post/sslSetup.html"
 
   # Once you have executed the command, verify that all the certificates made it to the keystore. Check the keystore from:
   # http://localhost:4502/libs/granite/security/content/userEditor.html/home/users/system/security/ssl-service
