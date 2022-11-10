@@ -223,8 +223,9 @@ instance_status() {
     the_process=$(ps aux | grep java | grep $AEM_TYPE)
 
     the_sling_settings=$(curl -s -n "${AEM_HTTP_LOCALHOST}/system/console/status-slingsettings.txt" )
-    the_system_properties=$(curl -s -n "${AEM_HTTP_LOCALHOST}/system/console/status-System%20Properties.txt" )
     the_sling_home=$(echo "${the_sling_settings}" | grep "Sling Home = " | sed "s/Sling Home = //g" )
+
+    the_system_properties=$(curl -s -n "${AEM_HTTP_LOCALHOST}/system/console/status-System%20Properties.txt" )
     the_run_modes=$(echo "${the_system_properties}" | grep "sling.run.modes = " | sed "s/sling.run.modes = //g" )
 
     if [[ $the_bundles_status =~ all\ [0-9]{3}\ bundles\ active ]]; then
@@ -536,7 +537,7 @@ do
     status)
       instance_status
       ;;
-    destroy)
+    destroy | delete)
       no_web $1
       destroy_instance
       show_duration=true
