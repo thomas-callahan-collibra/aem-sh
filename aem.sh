@@ -28,7 +28,7 @@ set_env_vars() {
   fi
 
   # get the latest AEM SDK
-  AEM_SDK_ACTIVE=$(find $AEM_SDK_HOME/sdk -mindepth 1 -type d | sort -nr | tr -d '\n')
+  AEM_SDK_ACTIVE=$(find $AEM_SDK_HOME/sdk -mindepth 1 -type d | sort -nr | head -n 1 | tr -d '\n')
   export AEM_SDK_ACTIVE
 
   export AEM_INSTANCE_HOME=$AEM_SDK_HOME/$AEM_TYPE
@@ -255,21 +255,21 @@ tail_log() {
   else
     if [[ "$AEM_TYPE" == "web" ]]; then
       # available logs:
-      # httpd_access.log
-      # httpd_error.log
-      # dispatcher.log
-      # healthcheck_access_log
-      # httpd_mod_security_audit.log
+      # - httpd_access.log
+      # - httpd_error.log
+      # - dispatcher.log
+      # - healthcheck_access_log
+      # - httpd_mod_security_audit.log -
       # httpd_mod_security_debug.log
       the_log_filename=httpd_error.log
     else
       # available logs:
-      # error.log
-      # access.log
-      # request.log
-      # queryrecorder.log
-      # stdout.log
-      # history.log
+      # - error.log
+      # - access.log
+      # - request.log
+      # - queryrecorder.log
+      # - stdout.log
+      # - history.log
       the_log_filename=error.log
     fi
   fi
@@ -297,11 +297,18 @@ tail_log() {
 
 toggle_workflow_components() {
   if [[ "$1" == "enable" || "$1" == "disable" ]]; then
-    the_action=$1
-    curl -n -s --data "action=$the_action" "$AEM_HTTP_LOCALHOST/system/console/components/com.adobe.granite.workflow.core.launcher.WorkflowLauncherImpl"
-    curl -n -s --data "action=$the_action" "$AEM_HTTP_LOCALHOST/system/console/components/com.adobe.granite.workflow.core.launcher.WorkflowLauncherListener"
-    echo
+    local the_action=$1
+    print_step "$(echo $the_action | sed 's/./\U&/') Workflow components" ""
+    toggle_workflow_component "$the_action" "com.adobe.granite.workflow.core.launcher.WorkflowLauncherImpl"
+    toggle_workflow_component "$the_action" "com.adobe.granite.workflow.core.launcher.WorkflowLauncherListener"
   fi
+}
+
+toggle_workflow_component() {
+  local the_action=$1
+  local the_osgi_component=$2
+  the_http_code=$(curl -n -s -o /dev/null -w "%{http_code}" --data "action=$the_action" "$AEM_HTTP_LOCALHOST/system/console/components/$the_osgi_component")
+  print_justified "$the_http_code" "$the_osgi_component"
 }
 
 block_until_bundles_active() {
@@ -365,7 +372,10 @@ install_package() {
   local the_package_name
   the_package_name=$(basename $the_package_path)
   print_step "Installing package $the_package_name" "to $AEM_HTTP_LOCALHOST"
-  curl -n -F file=@"${the_package_path}" -F name="${the_package_name}" -F force=true -F install=true "${AEM_HTTP_LOCALHOST}/crx/packmgr/service.jsp"
+
+  the_http_code=$(curl -n -s -o /dev/null -w "%{http_code}" -F file=@"${the_package_path}" -F name="${the_package_name}" -F force=true -F install=true "${AEM_HTTP_LOCALHOST}/crx/packmgr/service.jsp")
+  print_justified "..." "$the_http_code"
+
   echo
 }
 
@@ -381,7 +391,6 @@ install_content() {
   for file in "${files[@]}"; do
     install_package "$file"
   done
-
   toggle_workflow_components enable
 }
 
