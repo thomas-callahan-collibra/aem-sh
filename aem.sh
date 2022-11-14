@@ -232,6 +232,7 @@ instance_status() {
 
     the_system_properties=$(curl -s -n "${AEM_HTTP_LOCALHOST}/system/console/status-System%20Properties.txt" )
     the_run_modes=$(echo "${the_system_properties}" | grep "sling.run.modes = " | sed "s/sling.run.modes = //g" )
+    the_java_command=$(echo "${the_system_properties}" | grep "sun.java.command = " | awk '{print $3}')
 
     if [[ $the_bundles_status =~ all\ [0-9]{3}\ bundles\ active ]]; then
       echo -ne ${GREEN}
@@ -243,8 +244,9 @@ instance_status() {
     echo "AEM ${AEM_TYPE}"
     if [ -n "$the_process" ]; then
       print_justified "Home" "$the_sling_home"
-      print_justified "Bundles" "$the_bundles_status"
+      print_justified "Jar" "$the_java_command"
       print_justified "Run modes" "$the_run_modes"
+      print_justified "Bundles" "$the_bundles_status"
       print_justified "Process" "$the_process"
     fi
   fi
