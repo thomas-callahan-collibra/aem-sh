@@ -4,7 +4,7 @@ set_env_vars() {
   export AEM_SDK_HOME=~/aem-sdk
   mkdir -p $AEM_SDK_HOME
   if [[ -z "${AEM_PROJECT_HOME}" ]]; then
-    print_step "Please set the AEM_PROJECT_HOME environment variable." "" error
+    print_step "Missing the environment variable:" "$AEM_PROJECT_HOME" error
     exit 1
   fi
 
@@ -36,7 +36,6 @@ set_env_vars() {
   export AEM_HTTP_LOCALHOST=http://$AEM_LOCALHOST
   export AEM_LOCALHOST_SSL=localhost:$AEM_HTTPS_PORT
   export AEM_HTTPS_LOCALHOST=https://$AEM_LOCALHOST_SSL
-  export AEM_HTTPS_HOSTNAME="https://aem-${AEM_TYPE}-local.dev"
 
   # colours!
   export CYAN='\033[0;36m'
@@ -55,7 +54,7 @@ start_instance() {
 
   local the_crx_quickstart="$AEM_INSTANCE_HOME/crx-quickstart"
   if [ ! -d $the_crx_quickstart ]; then
-    print_step "Skipping AEM ${AEM_TYPE} start" "(${the_crx_quickstart} does not exist)" error
+    print_step "Skipping AEM ${AEM_TYPE} start:" "(${the_crx_quickstart} does not exist)" error
     return 1
   fi
 
@@ -104,7 +103,7 @@ stop_instance() {
 
 destroy_instance() {
   if [ ! -d $AEM_INSTANCE_HOME ]; then
-    print_step "Cannot delete AEM ${AEM_TYPE}" "${AEM_INSTANCE_HOME} does not exist" error
+    print_step "Cannot delete AEM ${AEM_TYPE}:" "${AEM_INSTANCE_HOME} does not exist" error
     return 1
   fi
 
@@ -156,28 +155,31 @@ create_instance() {
   print_justified "Setting memory" "$the_memory"
   sed -i "s/-server -Xmx1024m -XX:MaxPermSize=256M/${the_memory}/g" $the_start_script
 
-  # first boot
+  # on first boot, wait for all bundles
   $the_start_script
   block_until_bundles_active
 
+  configure_replication
   setup_instance_ssl
+}
 
+configure_replication() {
   if [[ "$AEM_TYPE" == "author" ]]; then
-    print_justified "Configuring the Publish replication agent on Author"
-
+    print_step "Configuring the Replication Agent on" "Author"
     # get the encrypted password for admin and set in the replication agent config
     local the_encrypted_password
     the_encrypted_password=$(curl -s -n -F datum=admin "${AEM_HTTP_LOCALHOST}/system/console/crypto/.json" | jq -r '.protected' )
-
-    curl -n -F "enabled=true" -F "userId=" \
+    the_http_code=$(curl -n -s -o /dev/null -w "%{http_code}" \
+            -F "enabled=true" -F "userId=" \
             -F "transportUser=admin" -F "transportPassword=${the_encrypted_password}" \
             -F "transportUri=http://localhost:4503/bin/receive?sling:authRequestLogin=1" \
-            "${AEM_HTTP_LOCALHOST}/etc/replication/agents.author/publish/jcr:content"
- fi
+            "${AEM_HTTP_LOCALHOST}/etc/replication/agents.author/publish/jcr:content")
+    print_justified "..." "$the_http_code"
+  fi
 }
 
 setup_instance_ssl() {
-  print_step "Setting SSL with hostname" "${AEM_HTTPS_HOSTNAME}"
+  print_step "Setting up SSL in AEM" "${AEM_TYPE}"
   local the_crypto_dir=${AEM_INSTANCE_HOME}/.crypto_keys
   mkdir -p $the_crypto_dir
 
@@ -197,11 +199,14 @@ setup_instance_ssl() {
   openssl pkcs8 -topk8 -inform PEM -outform DER -in "$the_crypto_dir/localhostprivate.key" -out "$the_crypto_dir/localhostprivate.der" -nocrypt
 
   # configure AEM via the SSL wizard
-  curl -s -o /dev/null -n -F "keystorePassword=${the_pass_phrase}" -F "keystorePasswordConfirm=${the_pass_phrase}" \
-                          -F "truststorePassword=${the_pass_phrase}" -F "truststorePasswordConfirm=${the_pass_phrase}" \
-                          -F "privatekeyFile=@$the_crypto_dir/localhostprivate.der" -F "certificateFile=@$the_crypto_dir/localhost.crt" \
-                          -F "httpsHostname=${AEM_HTTPS_HOSTNAME}" -F "httpsPort=${AEM_HTTPS_PORT}" \
-                          "${AEM_HTTP_LOCALHOST}/libs/granite/security/post/sslSetup.html"
+  the_http_code=$(curl -n -s -o /dev/null -w "%{http_code}" \
+      -F "keystorePassword=${the_pass_phrase}" -F "keystorePasswordConfirm=${the_pass_phrase}" \
+      -F "truststorePassword=${the_pass_phrase}" -F "truststorePasswordConfirm=${the_pass_phrase}" \
+      -F "privatekeyFile=@$the_crypto_dir/localhostprivate.der" -F "certificateFile=@$the_crypto_dir/localhost.crt" \
+      -F "httpsHostname=localhost" -F "httpsPort=${AEM_HTTPS_PORT}" \
+      "${AEM_HTTP_LOCALHOST}/libs/granite/security/post/sslSetup.html")
+  print_justified "Configuring SSL..." "$the_http_code"
+  sleep 5
 
   # Once you have executed the command, verify that all the certificates made it to the keystore. Check the keystore from:
   # http://localhost:4502/libs/granite/security/content/userEditor.html/home/users/system/security/ssl-service
@@ -366,7 +371,7 @@ start_dispatcher() {
 install_package() {
   local the_package_path=$1
   if [[ ! -f "${the_package_path}" ]]; then
-      print_step "File at $the_package_path not found, cannot install package" "" error
+      print_step "File at $the_package_path not found, cannot install package:" "$the_package_path" error
       return 1
   fi
   local the_package_name
@@ -401,14 +406,14 @@ install_code() {
   if [[ -f "${the_all_zip}" ]]; then
     install_package "${the_all_zip}"
   else
-    print_step "Could not find the All build artifact at ${AEM_PROJECT_HOME}" "" error
+    print_step "Could not find the All build artifact at:" "${AEM_PROJECT_HOME}" error
     return 1
   fi
 }
 
 hit_homepage() {
   if [[ -z "${AEM_PROJECT_HOME_PAGE}" ]]; then
-    print_step "Please set the AEM_PROJECT_HOME_PAGE environment variable." "" error
+    print_step "Missing environment variable:" "AEM_PROJECT_HOME_PAGE" error
     exit 1
   fi
 
@@ -445,7 +450,7 @@ print_step() {
   if [[ "$the_type" == "error" ]]; then
     the_line="${RED}${the_header}${NC}"
   else
-    the_line="${BLUE}${the_header}${NC}"
+    the_line="\n${BLUE}${the_header}${NC}"
   fi
 
   if [ ! -z "$the_object" ]; then
@@ -460,10 +465,12 @@ print_duration() {
   ((h=${time}/3600))
   ((m=(${time}%3600)/60))
   ((s=${time}%60))
-  printf "T %02d:%02d:%02d\n" $h $m $s
+  the_time=$(printf "%02d:%02d:%02d\n" $h $m $s)
+  print_justified "Time" "$the_time"
 }
 
 print_env_vars() {
+  print_justified "---" "---"
   print_justified "AEM_TYPE" "$AEM_TYPE"
   print_justified "AEM_SDK_HOME" "$AEM_SDK_HOME"
   print_justified "AEM_SDK_ACTIVE" "$AEM_SDK_ACTIVE"
@@ -473,15 +480,15 @@ print_env_vars() {
   if [[ "$AEM_TYPE" == "author" || "$AEM_TYPE" == "publish" ]]; then
     print_justified "AEM_HTTP_PORT" "$AEM_HTTP_PORT"
     print_justified "AEM_HTTPS_PORT" "$AEM_HTTPS_PORT"
-    print_justified "AEM_HTTPS_HOSTNAME" "$AEM_HTTPS_HOSTNAME"
+    print_justified "AEM_HTTP_LOCALHOST" "$AEM_HTTP_LOCALHOST"
+    print_justified "AEM_HTTPS_LOCALHOST" "$AEM_HTTPS_LOCALHOST"
     print_justified "AEM_JVM_DEBUG_PORT" "$AEM_JVM_DEBUG_PORT"
 
   elif [[ "$AEM_TYPE" == "web" ]]; then
     print_justified "DOCKER_WEB_PORT" "$DOCKER_WEB_PORT"
     print_justified "DOCKER_INTERNAL_HOST" "$DOCKER_INTERNAL_HOST"
   fi
-
-  echo
+  print_justified "---" "---"
 }
 
 print_help() {
@@ -503,7 +510,7 @@ print_help() {
 
 no_web() {
   if [[ "${AEM_TYPE}" == "web" ]]; then
-    print_step "'aem $1' not supported for" "$AEM_TYPE" error
+    print_step "Command '$1' not supported for:" "$AEM_TYPE" error
     exit 1
   fi
 }
@@ -591,15 +598,15 @@ case "$1" in
     set_env_vars $2
     tail_log $3
     ;;
-  hit_homepage)
-    no_web $1
-    set_env_vars $2
-    hit_homepage
-    ;;
   find_bundle)
     no_web $1
     set_env_vars author
     find_aem_bundle $3
+    ;;
+  rep)
+    no_web $1
+    set_env_vars $1
+    configure_replication
     ;;
   help)
     print_help
