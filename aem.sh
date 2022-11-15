@@ -231,8 +231,7 @@ instance_status() {
     the_sling_home=$(echo "${the_sling_settings}" | grep "Sling Home = " | sed "s/Sling Home = //g" )
 
     the_system_properties=$(curl -s -n "${AEM_HTTP_LOCALHOST}/system/console/status-System%20Properties.txt" )
-    the_run_modes=$(echo "${the_system_properties}" | grep "sling.run.modes = " | sed "s/sling.run.modes = //g" )
-    the_java_command=$(echo "${the_system_properties}" | grep "sun.java.command = " | awk '{print $3}')
+    the_run_modes=$(echo "${the_system_properties}" | grep "sling.run.modes = " | awk '{print $3}')
 
     if [[ $the_bundles_status =~ all\ [0-9]{3}\ bundles\ active ]]; then
       echo -ne ${GREEN}
@@ -244,7 +243,6 @@ instance_status() {
     echo "AEM ${AEM_TYPE}"
     if [ -n "$the_process" ]; then
       print_justified "Home" "$the_sling_home"
-      print_justified "Jar" "$the_java_command"
       print_justified "Run modes" "$the_run_modes"
       print_justified "Bundles" "$the_bundles_status"
       print_justified "Process" "$the_process"
@@ -440,7 +438,7 @@ print_justified() {
   local the_command=$1
   local the_args=$2
   local the_description=$3
-  printf "  ${MAGENTA}%-25s${BLUE}%-35s${GREEN}%-50s${NC}\n" "$the_command" "$the_args" "$the_description"
+  printf "  ${MAGENTA}%-25s${NC}%-35s${GREEN}%-50s${NC}\n" "$the_command" "$the_args" "$the_description"
 }
 
 print_step() {
@@ -452,11 +450,11 @@ print_step() {
   if [[ "$the_type" == "error" ]]; then
     the_line="${RED}${the_header}${NC}"
   else
-    the_line="\n${BLUE}${the_header}${NC}"
+    the_line="${BLUE}${the_header}${NC}"
   fi
 
   if [ ! -z "$the_object" ]; then
-    the_line="${the_line} ${CYAN}$the_object${NC}"
+    the_line="${the_line} ${CYAN}$the_object${NC}\n"
   fi
   echo -e "$the_line"
 }
