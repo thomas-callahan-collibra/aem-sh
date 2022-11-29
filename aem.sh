@@ -361,11 +361,21 @@ start_dispatcher() {
   $the_destination_script
 
   local the_dispatcher_sub_folder
-  the_dispatcher_sub_folder=$(find "$the_dispatcher_folder" -type d -mindepth 1 -maxdepth 1)
+  the_dispatcher_sub_folder=$(find "$the_dispatcher_folder" -name "dispatcher*" -type d -mindepth 1 -maxdepth 1)
 
   # start using the AEM Project Dispatcher source files
   # TODO Toggle "DISP_LOG_LEVEL=Debug REWRITE_LOG_LEVEL=Debug" with a flag?
-  "$the_dispatcher_sub_folder/bin/docker_run.sh" "$the_dispatcher_configs" "$DOCKER_INTERNAL_HOST" "$DOCKER_WEB_PORT" > /dev/null 2>&1 &
+  "$the_dispatcher_sub_folder/bin/docker_run.sh" "$the_dispatcher_configs" "$DOCKER_INTERNAL_HOST" "$DOCKER_WEB_PORT" &
+}
+
+validate_dispatcher() {
+  local the_dispatcher_configs="$AEM_PROJECT_HOME/dispatcher/src"
+  local the_dispatcher_folder=$AEM_SDK_HOME/dispatcher
+  local the_dispatcher_sub_folder
+  the_dispatcher_sub_folder=$(find "$the_dispatcher_folder" -name "dispatcher*" -type d -mindepth 1 -maxdepth 1)
+
+  print_step "Validating Dispatcher config files at" "$the_dispatcher_configs"
+  "$the_dispatcher_sub_folder/bin/validate.sh" "$the_dispatcher_configs"
 }
 
 install_package() {
@@ -515,6 +525,13 @@ no_web() {
   fi
 }
 
+no_aem() {
+  if [[ "${AEM_TYPE}" != "web" ]]; then
+    print_step "Command '$1' not supported for:" "$AEM_TYPE" error
+    exit 1
+  fi
+}
+
 # the script
 
 # Track time of certain commands
@@ -610,6 +627,11 @@ case "$1" in
     ;;
   help)
     print_help
+    ;;
+  validate)
+    no_aem $1
+    set_env_vars $1
+    validate_dispatcher
     ;;
 esac
 
