@@ -24,6 +24,24 @@ sed (GNU sed) 4.8
 grep (GNU grep) 3.7
 ```
 
+> **To install GNU sed:**
+> ```
+> ~ % brew install gnu-sed
+> ```
+> Then to make this sed the default, export the PATH value reported by brew, e.g.:
+> ``` 
+> ~ % export PATH="/opt/homebrew/opt/gnu-sed/libexec/gnubin:$PATH"
+> ```
+
+> **To install GNU grep:**
+> ```
+> ~ % brew install grep
+> ```
+> Then to make this grep the default, export the PATH value reported by brew, e.g.:
+> ``` 
+> ~ % export PATH="/opt/homebrew/opt/grep/libexec/gnubin:$PATH" 
+> ```
+
 * Set the following two environment variables, e.g. in your `.zshrc`:
 ```
 export AEM_PROJECT_HOME=~/git/my-aem-project                   # point to your AEM project
