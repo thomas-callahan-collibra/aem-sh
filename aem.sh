@@ -365,7 +365,7 @@ start_dispatcher() {
 
   # start using the AEM Project Dispatcher source files
   # TODO Toggle "DISP_LOG_LEVEL=Debug REWRITE_LOG_LEVEL=Debug" with a flag?
-  "$the_dispatcher_sub_folder/bin/docker_run.sh" "$the_dispatcher_configs" "$DOCKER_INTERNAL_HOST" "$DOCKER_WEB_PORT" &
+  "$the_dispatcher_sub_folder/bin/docker_run.sh" "$the_dispatcher_configs" "$DOCKER_INTERNAL_HOST" "$DOCKER_WEB_PORT" > /dev/null 2>&1 &
 }
 
 validate_dispatcher() {
