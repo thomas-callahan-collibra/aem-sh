@@ -61,7 +61,7 @@ start_instance() {
   print_step "Starting AEM ${AEM_TYPE}" "at ${the_crx_quickstart}"
   $the_crx_quickstart/bin/start
   ( tail -f -n0 $the_crx_quickstart/logs/stdout.log & ) | grep -q "Startup completed"
-  echo -e "Ready${NC}\n"
+  echo -e "... ready${NC}"
 }
 
 stop_instance() {
@@ -174,7 +174,7 @@ configure_replication() {
             -F "transportUser=admin" -F "transportPassword=${the_encrypted_password}" \
             -F "transportUri=http://localhost:4503/bin/receive?sling:authRequestLogin=1" \
             "${AEM_HTTP_LOCALHOST}/etc/replication/agents.author/publish/jcr:content")
-    print_justified "..." "$the_http_code"
+    print_justified "$the_http_code"
   fi
 }
 
@@ -303,7 +303,7 @@ tail_log() {
 toggle_workflow_components() {
   if [[ "$1" == "enable" || "$1" == "disable" ]]; then
     local the_action=$1
-    print_step "$(echo $the_action | sed 's/./\U&/') Workflow components" ""
+    print_step "$(echo $the_action | sed 's/./\U&/')" "asset workflows"
     toggle_workflow_component "$the_action" "com.adobe.granite.workflow.core.launcher.WorkflowLauncherImpl"
     toggle_workflow_component "$the_action" "com.adobe.granite.workflow.core.launcher.WorkflowLauncherListener"
   fi
@@ -386,10 +386,12 @@ install_package() {
   fi
   local the_package_name
   the_package_name=$(basename $the_package_path)
-  print_step "Installing package $the_package_name" "to $AEM_HTTP_LOCALHOST"
+  print_step "Installing package ${MAGENTA}$the_package_name${NC}" "to $AEM_HTTP_LOCALHOST"
 
   the_http_code=$(curl -n -s -o /dev/null -w "%{http_code}" -F file=@"${the_package_path}" -F name="${the_package_name}" -F force=true -F install=true "${AEM_HTTP_LOCALHOST}/crx/packmgr/service.jsp")
   print_justified "..." "$the_http_code"
+
+  # curl -n -s -F file=@"${the_package_path}" -F name="${the_package_name}" -F force=true -F install=true "${AEM_HTTP_LOCALHOST}/crx/packmgr/service.jsp"
 
   echo
 }
@@ -464,7 +466,7 @@ print_step() {
   fi
 
   if [ ! -z "$the_object" ]; then
-    the_line="${the_line} ${CYAN}$the_object${NC}\n"
+    the_line="${the_line} ${CYAN}$the_object${NC}"
   fi
   echo -e "$the_line"
 }
@@ -476,7 +478,7 @@ print_duration() {
   ((m=(${time}%3600)/60))
   ((s=${time}%60))
   the_time=$(printf "%02d:%02d:%02d\n" $h $m $s)
-  print_justified "Time" "$the_time"
+  print_justified "$the_time"
 }
 
 print_env_vars() {
@@ -579,8 +581,8 @@ do
       no_web $1
       destroy_instance force
       create_instance
-      install_code
       install_content
+      install_code
       hit_homepage
       show_duration=true
       ;;
