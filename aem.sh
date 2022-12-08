@@ -334,10 +334,8 @@ block_until_bundles_active() {
   echo -e "${GREEN}$bundles_status${NC}"
 }
 
-find_aem_bundle() {
-  # Ex: `find_aem_bundle com.adobe.some.package`
-  local the_search_string=$1
-  find $AEM_INSTANCE_HOME/crx-quickstart -name '*.jar' -exec grep -Hls "${the_search_string}" {} \;
+find_in_bundles() {
+  find "$AEM_INSTANCE_HOME/crx-quickstart/launchpad/felix" -name '*.jar' -exec grep -Hls "${1}" {} \;
 }
 
 start_dispatcher() {
@@ -516,6 +514,7 @@ print_help() {
   print_justified "start" "[author|publish|web]" "Starts an AEM or Web instance. Specify no argument to start all instances."
   print_justified "stop" "[author|publish|web]" "Stops gracefully an AEM or Web instance. Specify no argument to stop all instances."
   print_justified "log" "author|publish|web [log_file]" "Tails a log file from AEM or Web. Specify an exact filename to override the defaults: 'error.log' for AEM and 'httpd_error.log' for Web."
+  print_justified "find" "search_string" "Grep bundle jars under crx-quickstart/launchpad/felix"
   print_justified "help" "" "Shows this screen!"
   print_justified ""
 }
@@ -617,10 +616,10 @@ case "$1" in
     set_env_vars $2
     tail_log $3
     ;;
-  find_bundle)
+  find)
     no_web $1
     set_env_vars author
-    find_aem_bundle $3
+    find_in_bundles $2
     ;;
   rep)
     no_web $1
