@@ -389,8 +389,6 @@ install_package() {
   the_http_code=$(curl -n -s -o /dev/null -w "%{http_code}" -F file=@"${the_package_path}" -F name="${the_package_name}" -F force=true -F install=true "${AEM_HTTP_LOCALHOST}/crx/packmgr/service.jsp")
   print_justified "..." "$the_http_code"
 
-  # curl -n -s -F file=@"${the_package_path}" -F name="${the_package_name}" -F force=true -F install=true "${AEM_HTTP_LOCALHOST}/crx/packmgr/service.jsp"
-
   echo
 }
 
@@ -400,7 +398,7 @@ install_content() {
   files=()
   while IFS=  read -r -d $'\0'; do
       files+=("$REPLY")
-  done < <(find "$AEM_SDK_HOME/packages" -name '*.zip' -print0)
+  done < <(find "$AEM_SDK_HOME/packages" -depth 1 -name '*.zip' -print0)
 
   # and install them
   for file in "${files[@]}"; do
