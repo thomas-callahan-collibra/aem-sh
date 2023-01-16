@@ -49,6 +49,8 @@ set_env_vars() {
 start_instance() {
   if [[ "${AEM_TYPE}" == "web" ]]; then
     start_dispatcher
+    sleep 2
+    hit_homepage
     return
   fi
 
@@ -174,7 +176,7 @@ configure_replication() {
             -F "transportUser=admin" -F "transportPassword=${the_encrypted_password}" \
             -F "transportUri=http://localhost:4503/bin/receive?sling:authRequestLogin=1" \
             "${AEM_HTTP_LOCALHOST}/etc/replication/agents.author/publish/jcr:content")
-    print_justified "$the_http_code"
+    print_justified "..." "$the_http_code"
   fi
 }
 
@@ -339,6 +341,18 @@ find_in_bundles() {
 }
 
 start_dispatcher() {
+  #Open Docker, only if is not running
+  if (! docker stats --no-stream ); then
+    # On Mac OS this would be the terminal command to launch Docker
+    open "/Applications/Docker.app"
+    # Wait until Docker daemon is running and has completed initialisation
+    while (! docker stats --no-stream ); do
+      # Docker takes a few seconds to initialize
+      print_justified "Waiting for Docker to launch..."
+      sleep 1
+    done
+  fi
+
   local the_dispatcher_configs="$AEM_PROJECT_HOME/dispatcher/src"
   local the_dispatcher_folder=$AEM_SDK_HOME/dispatcher
   local the_destination_script=$the_dispatcher_folder/dispatcher.sh
@@ -387,9 +401,7 @@ install_package() {
   print_step "Installing package ${MAGENTA}$the_package_name${NC}" "to $AEM_HTTP_LOCALHOST"
 
   the_http_code=$(curl -n -s -o /dev/null -w "%{http_code}" -F file=@"${the_package_path}" -F name="${the_package_name}" -F force=true -F install=true "${AEM_HTTP_LOCALHOST}/crx/packmgr/service.jsp")
-  print_justified "..." "$the_http_code"
-
-  echo
+  print_justified "$the_http_code"
 }
 
 install_content() {
@@ -425,20 +437,28 @@ hit_homepage() {
     exit 1
   fi
 
-  local the_url="$AEM_HTTP_LOCALHOST$AEM_PROJECT_HOME_PAGE"
+  local the_url
   local curl_auth_opts=()
-  if [[ "$AEM_TYPE" == "author" ]]; then
-    the_url="$the_url?wcmmode=disabled"
-    curl_auth_opts=( -n )
+  if [[ "${AEM_TYPE}" == "web" ]]; then
+    the_url="http://localhost:8080/us/en"
+  else
+    the_url="$AEM_HTTP_LOCALHOST$AEM_PROJECT_HOME_PAGE"
+    if [[ "$AEM_TYPE" == "author" ]]; then
+      the_url="$the_url?wcmmode=disabled"
+      curl_auth_opts=( -n )
+    fi
   fi
 
-  # curl the homepage 5 times, print the response code, and sleep 3 seconds
+  # curl the homepage 3 times
   print_step "Hitting" "$the_url"
-  for n in `seq 1 5`
+  for n in `seq 1 3`
   do
     the_http_code=$(curl "${curl_auth_opts[@]}" -s -o /dev/null -I -w "%{http_code}" "$the_url")
-    print_justified "$n" "$the_http_code"
-    sleep 3
+    print_justified "..." "$the_http_code"
+    if [[ "$the_http_code" == "200" ]]; then
+        break
+      fi
+    sleep 2
   done
 }
 
