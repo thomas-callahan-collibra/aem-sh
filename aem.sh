@@ -208,7 +208,7 @@ setup_instance_ssl() {
       -F "httpsHostname=localhost" -F "httpsPort=${AEM_HTTPS_PORT}" \
       "${AEM_HTTP_LOCALHOST}/libs/granite/security/post/sslSetup.html")
   print_justified "Configuring SSL..." "$the_http_code"
-  sleep 5
+  block_until_bundles_active
 
   # Once you have executed the command, verify that all the certificates made it to the keystore. Check the keystore from:
   # http://localhost:4502/libs/granite/security/content/userEditor.html/home/users/system/security/ssl-service
