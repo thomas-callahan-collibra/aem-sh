@@ -456,8 +456,8 @@ hit_homepage() {
     the_http_code=$(curl "${curl_auth_opts[@]}" -s -o /dev/null -I -w "%{http_code}" "$the_url")
     print_justified "..." "$the_http_code"
     if [[ "$the_http_code" == "200" ]]; then
-        break
-      fi
+      break
+    fi
     sleep 2
   done
 }
