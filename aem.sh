@@ -302,6 +302,16 @@ tail_log() {
   fi
 }
 
+list_log() {
+  # list the log files for type
+  if [[ "$AEM_TYPE" == "web" ]]; then # the log in Docker
+    the_container_id="$(docker container ls | grep adobe/aem | awk '{print $1}')"
+    docker exec -it "$the_container_id" ls -Slh "/var/log/apache2"
+  else # the local AEM log
+    ls -Slh "$AEM_INSTANCE_HOME/crx-quickstart/logs"
+  fi
+}
+
 toggle_workflow_components() {
   if [[ "$1" == "enable" || "$1" == "disable" ]]; then
     local the_action=$1
@@ -449,12 +459,13 @@ hit_homepage() {
     fi
   fi
 
-  # curl the homepage 3 times
+  # hit the homepage 3 times
+  # bing bang bung
   print_step "Hitting" "$the_url"
   for n in `seq 1 3`
   do
     the_http_code=$(curl "${curl_auth_opts[@]}" -s -o /dev/null -I -w "%{http_code}" "$the_url")
-    print_justified "..." "$the_http_code"
+    print_justified "... $n ..." "$the_http_code"
     if [[ "$the_http_code" == "200" ]]; then
       break
     fi
@@ -630,6 +641,10 @@ case "$1" in
     install_code
     show_duration=true
     ;;
+  list-log)
+      set_env_vars $2
+      list_log
+      ;;
   log)
     set_env_vars $2
     tail_log $3
