@@ -254,7 +254,7 @@ instance_status() {
   echo
 }
 
-tail_log() {
+form_log_filename() {
   # determine the log file name
   local the_log_filename
   if [ -n "$1" ]; then
@@ -286,6 +286,11 @@ tail_log() {
     the_log_filename="${the_log_filename}.log"
   fi
 
+  echo $the_log_filename
+}
+
+tail_log() {
+  the_log_file=$(form_log_filename $1)
   # tail the log
   if [[ "$AEM_TYPE" == "web" ]]; then # the log in Docker
     the_container_id="$(docker container ls | grep adobe/aem | awk '{print $1}')"
@@ -310,6 +315,17 @@ list_log() {
   else # the local AEM log
     ls -Slh "$AEM_INSTANCE_HOME/crx-quickstart/logs"
   fi
+}
+
+print_log() {
+  the_log_filename=$(form_log_filename $1)
+  # print the log path
+  if [[ "$AEM_TYPE" == "web" ]]; then # the log in Docker
+    echo "/var/log/apache2/$the_log_filename"
+  else # the local AEM log
+    echo "$AEM_INSTANCE_HOME/crx-quickstart/logs/$the_log_filename"
+  fi
+
 }
 
 toggle_workflow_components() {
@@ -644,6 +660,10 @@ case "$1" in
   list-log)
       set_env_vars $2
       list_log
+      ;;
+  print-log)
+      set_env_vars $2
+      print_log $3
       ;;
   log)
     set_env_vars $2
