@@ -290,7 +290,7 @@ form_log_filename() {
 }
 
 tail_log() {
-  the_log_file=$(form_log_filename $1)
+  the_log_filename=$(form_log_filename $1)
   # tail the log
   if [[ "$AEM_TYPE" == "web" ]]; then # the log in Docker
     the_container_id="$(docker container ls | grep adobe/aem | awk '{print $1}')"
