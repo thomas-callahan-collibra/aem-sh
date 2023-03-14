@@ -514,6 +514,12 @@ print_step() {
   echo -e "$the_line"
 }
 
+goto_dispatcher() {
+  the_container_id="$(docker container ls | grep adobe/aem | awk '{print $1}')"
+  print_step "Going into Docker image" "$the_container_id"
+  docker exec -it "$the_container_id" /bin/bash
+}
+
 print_duration() {
   end=$(date +%s)
   time=$(($end-$BEGIN))
@@ -686,6 +692,11 @@ case "$1" in
     no_aem $1
     set_env_vars $1
     validate_dispatcher
+    ;;
+  goto)
+    no_aem $1
+    set_env_vars $1
+    goto_dispatcher
     ;;
 esac
 
