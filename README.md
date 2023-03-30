@@ -15,6 +15,8 @@ Java(TM) SE Runtime Environment 18.9 (build 11.0.16+11-LTS-199)
 Java HotSpot(TM) 64-Bit Server VM 18.9 (build 11.0.16+11-LTS-199, mixed mode)
 ```
 * `brew install jq`
+* `brew install curl` (The version of `curl` that comes preinstalled in MacOS cannot read the `.netrc` file)
+
 * The GNU versions of `sed` and `grep` - see [this](https://medium.com/@bramblexu/install-gnu-sed-on-mac-os-and-set-it-as-default-7c17ef1b8f64) - and confirm with:
 ```
 ~ % sed --version
@@ -56,7 +58,8 @@ export AEM_PROJECT_HOME_PAGE=/content/my-co/us/en/home.html    # point to your A
 1. Create the `aem` symlink on your `$PATH`. A possible approach:
   * Create `~/bin` and in your profile: `export $PATH=$PATH:~/bin`
   * Create the symlink: `ln -s ~/path/to/your/clone/aem-sh/aem.sh ~/bin/aem`
-1 Test with `aem help` to see the script's usage.
+  * Test with `aem help` to see the script's usage.
+1. Create `~/.netrc` with contents: `machine localhost login admin password admin`
 1. Create `~/aem-sdk`
 1. Download the AEM SDK zip and unzip to `/aem-sdk/sdk`
 1. Download your content packages from the source Author (typically Production), and please under `~/aem-sdk/packages` and is used by `aem install_content`
